@@ -1,0 +1,24 @@
+[
+  {
+    "id": "factory-in",
+    "type": "http request",
+    "name": "Factory Copilot /api/analyze",
+    "method": "POST",
+    "ret": "obj",
+    "url": "http://127.0.0.1:8000/api/analyze",
+    "headers": {"Content-Type": "application/json"},
+    "x": 300,
+    "y": 120,
+    "wires": [["factory-debug"]]
+  },
+  {
+    "id": "factory-debug",
+    "type": "debug",
+    "name": "Root cause result",
+    "active": true,
+    "complete": "payload",
+    "x": 570,
+    "y": 120,
+    "wires": []
+  }
+]

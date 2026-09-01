@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+**/__pycache__/
+.pytest_cache/
+.git/
+.github/
+runtime/*
+!runtime/.gitkeep
+.env
+.env.local
+*.pem
+*.key
+*.bak
+.venv_broken_*

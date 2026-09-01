@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}ライン一覧 · {{ app_name }}{% endblock %}
+{% block page_title %}ライン一覧{% endblock %}
+{% block content %}
+<div class="page-head compact-head">
+  <div><h1>ライン別設備一括モニタ ▶ ライン一覧</h1><p>各ラインの生産数と時間別推移、検査不良数をまとめて監視します（デモ用ダミーデータ）。</p></div>
+</div>
+
+<div class="line-list-grid">
+  {% for line in data.lines %}
+  <div class="chart-panel gauge-cell" style="grid-row:{{ loop.index }}">
+    <div class="chart-panel-head"><h3>{{ line.label }}</h3></div>
+    <div id="lineGauge{{ loop.index }}"></div>
+  </div>
+  <div class="chart-panel chart-cell" style="grid-row:{{ loop.index }}">
+    <div class="chart-panel-head"><h3>{{ line.label.replace('生産数','時間別生産数') }}</h3></div>
+    <div id="lineHourly{{ loop.index }}"></div>
+  </div>
+  {% endfor %}
+  <div class="chart-panel defect-cell" style="grid-column:3;grid-row:1">
+    <div class="chart-panel-head"><h3>{{ data.defects.label }}</h3></div>
+    <div id="defectGauge"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var data = {{ data|tojson }};
+  data.lines.forEach(function(line, i){
+    FDCharts.gauge(document.getElementById('lineGauge' + (i + 1)), {
+      value: line.current_count, min: 0, max: line.gauge_max, valueLabel: line.current_count,
+      zones: [{upTo:.33,color:'#c0392b'},{upTo:.66,color:'#d98a1f'},{upTo:1,color:'#2e9e4f'}]
+    });
+    FDCharts.stackedBarLine(document.getElementById('lineHourly' + (i + 1)), {
+      labels: line.hourly.labels,
+      series: { count: line.hourly.values },
+      colors: { count: '#8ec98a' },
+      legend: false,
+      xLabelCount: 6
+    });
+  });
+
+  FDCharts.gauge(document.getElementById('defectGauge'), {
+    value: data.defects.value, min: 0, max: data.defects.max, valueLabel: data.defects.value,
+    zones: [{upTo:.3,color:'#2e9e4f'},{upTo:.6,color:'#d98a1f'},{upTo:1,color:'#c0392b'}]
+  });
+})();
+</script>
+{% endblock %}

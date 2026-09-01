@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}画像AI · {{ app_name }}{% endblock %}
+{% block page_title %}画像検査センター{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>カメラ・画像品質AI</h1><p>RTSP / Webカメラ / 動画 / 静止画を取り込み、物体検出・追跡・QR/OCR・外観異常を品質調査の証拠へ接続します。</p></div>
+  <div class="page-actions"><a class="btn ghost" href="/engineering">推論基盤</a><a class="btn primary" href="/investigate">原因調査へ</a></div>
+</div>
+
+<div class="vision-grid">
+  {% for cam in vision.cameras %}
+  <section class="panel camera-card {% if not cam.enabled %}disabled-card{% endif %}">
+    <div class="panel-head"><div><span class="section-kicker">カメラ</span><h2>{{ cam.name }}</h2></div><span class="state-pill {% if cam.enabled %}pass{% else %}warn{% endif %}">{{ '準備完了' if cam.enabled else '設定例' }}</span></div>
+    <div class="camera-stage">
+      {% set latest = (vision.events | selectattr('camera_id','equalto',cam.id) | list | first) %}
+      {% if latest and latest.snapshot_path %}<img src="{{ vision.snapshot_base }}{{ latest.snapshot_path }}" alt="最新検出画像">
+      {% elif cam.id == 'cam-body-03' %}<img src="/static/vision_placeholder.svg" alt="画像検査デモ">
+      {% else %}<div class="camera-empty"><b>画像なし</b><span>{{ cam.source }}</span></div>{% endif %}
+      <div class="camera-overlay"><span>{{ cam.equipment_id }}</span><span>{{ (cam.detector.type or 'demo')|ja_term }}</span></div>
+    </div>
+    <div class="camera-meta"><div><small>入力元</small><code>{{ cam.source }}</code></div><div><small>対象</small><b>{{ cam.target_id or '-' }}</b></div></div>
+    <div class="rule-chips">{% for r in cam.rules %}<span>{{ r.type|ja_term }} / {{ r.class_name }}</span>{% endfor %}</div>
+    {% if cam.enabled %}<form method="post" action="/vision/capture/{{ cam.id }}"><button class="btn primary full" type="submit">1フレーム解析</button></form>{% endif %}
+  </section>
+  {% endfor %}
+</div>
+
+<div class="lower-grid vision-lower">
+  <section class="panel">
+    <div class="panel-head"><div><span class="section-kicker">画像検査イベント</span><h2>画像から検出した品質イベント</h2></div><span class="count-badge">{{ vision.events|length }}</span></div>
+    {% if vision.events %}<div class="event-list">{% for e in vision.events[:12] %}
+      <div class="event-row"><span class="severity {{ 'critical' if e.severity in ['critical','high'] else 'warning' }}">{{ e.severity|ja_status }}</span><div><b>{{ e.equipment_id }} · {{ e.camera_id }}</b><p>{{ e.message }}</p><small>{{ e.created_at }}</small></div>{% if e.snapshot_path %}<a href="{{ vision.snapshot_base }}{{ e.snapshot_path }}" target="_blank">画像</a>{% endif %}</div>
+    {% endfor %}</div>{% else %}<div class="empty-state">まだイベントはありません。CAM-BODY-03の「1フレーム解析」を実行すると、サンプル欠陥が検出されます。</div>{% endif %}
+  </section>
+  <section class="panel">
+    <div class="panel-head"><div><span class="section-kicker">人手確認・再学習</span><h2>人手確認キュー</h2></div><span class="count-badge">{{ review_items|length }}</span></div>
+    <p class="panel-copy">低信頼度の検出や重大イベントを自動保存。確認済み画像を学習データへ戻す運用を想定しています。</p>
+    {% if review_items %}<div class="review-strip">{% for r in review_items[:8] %}<a href="{{ vision.review_base }}{{ r.image_path }}" target="_blank"><img src="{{ vision.review_base }}{{ r.image_path }}"><span>#{{ r.id }} {{ r.camera_id }}</span></a>{% endfor %}</div>{% else %}<div class="empty-state">レビュー待ちはありません。</div>{% endif %}
+    <div class="integration-note"><b>接続先</b><span>Label Studio / CVAT / MLflow / 社内ラベル付け基盤</span></div>
+  </section>
+</div>
+
+<section class="panel architecture-panel">
+  <div class="panel-head"><div><span class="section-kicker">処理フロー</span><h2>画像AI → Factory Decision の統合フロー</h2></div></div>
+  <div class="pipeline-flow"><span>カメラ / RTSP</span><i>→</i><span>YOLOX / Anomalib</span><i>→</i><span>ByteTrack</span><i>→</i><span>QR / OCR</span><i>→</i><span>判定ルール</span><i>→</i><span>根拠保存</span><i>→</i><strong>原因分析</strong></div>
+</section>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}データマップ · {{ app_name }}{% endblock %}
+{% block page_title %}データ関係マップ{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>工場データの「つながり」を一枚で見る</h1><p>ファイル → 表 → 意味付けされた列 → 結合 → 利用可能な分析までをデータ系譜として可視化。ノードや線を押すと、承認状態・根拠・サンプル・必要データを確認できます。</p></div>
+  <div class="page-actions"><a class="btn primary" href="/onboarding">データ投入</a></div>
+</div>
+
+<div class="lineage-summary-grid">
+  <div class="metric-card"><div class="metric-top"><span>ノード</span><span class="metric-icon">◇</span></div><div class="metric-value compact">{{ lineage.summary.nodes }}</div><div class="metric-foot">ファイル {{ lineage.summary.by_kind.file }} · テーブル {{ lineage.summary.by_kind.table }} · 列 {{ lineage.summary.by_kind.column }}</div></div>
+  <div class="metric-card"><div class="metric-top"><span>接続</span><span class="metric-icon">↔</span></div><div class="metric-value compact">{{ lineage.summary.edges }}</div><div class="metric-foot">列マッピング / 結合 / 分析入力</div></div>
+  <div class="metric-card"><div class="metric-top"><span>承認待ち</span><span class="metric-icon warn">!</span></div><div class="metric-value compact">{{ lineage.summary.pending }}</div><div class="metric-foot">保留 {{ lineage.summary.held }} · 却下 {{ lineage.summary.rejected }}</div></div>
+  <div class="metric-card"><div class="metric-top"><span>稼働中分析</span><span class="metric-icon ok">AI</span></div><div class="metric-value compact pass">{{ lineage.summary.active_modules }}</div><div class="metric-foot">機能レジストリ</div></div>
+</div>
+
+<section class="panel lineage-panel">
+  <div class="lineage-toolbar">
+    <div class="lineage-filters">
+      <input id="lineageSearch" class="text-input" type="search" placeholder="ファイル・列・分析を検索">
+      <select id="lineageKindFilter"><option value="all">全レイヤー</option><option value="file">ファイル</option><option value="table">テーブル</option><option value="column">列</option><option value="join">結合</option><option value="module">分析</option></select>
+      <select id="lineageStatusFilter"><option value="all">全状態</option><option value="pending">未承認</option><option value="approved">承認済み</option><option value="held">保留</option><option value="rejected">却下</option><option value="active">稼働中</option><option value="waiting">データ待ち</option></select>
+    </div>
+    <div class="lineage-zoom"><button class="btn ghost" id="lineageZoomOut" type="button">−</button><span id="lineageZoomLabel">100%</span><button class="btn ghost" id="lineageZoomIn" type="button">＋</button><button class="btn ghost" id="lineageReset" type="button">全体表示</button></div>
+  </div>
+
+  <div class="lineage-layout">
+    <div class="lineage-viewport" id="lineageViewport">
+      <div class="lineage-canvas" id="lineageCanvas">
+        <svg class="lineage-edges" id="lineageEdges" aria-hidden="true"></svg>
+        <div class="lineage-layer-labels" id="lineageLayerLabels"></div>
+        <div class="lineage-nodes" id="lineageNodes"></div>
+      </div>
+    </div>
+    <aside class="lineage-detail" id="lineageDetail">
+      <span class="section-kicker">選択中の項目</span>
+      <h2>ノードまたは線を選択</h2>
+      <p>関係の根拠、AI信頼度、承認者、サンプル値などをここに表示します。</p>
+    </aside>
+  </div>
+  <div class="lineage-legend"><span><i class="lg approved"></i>承認済み</span><span><i class="lg pending"></i>未承認</span><span><i class="lg held"></i>保留</span><span><i class="lg rejected"></i>却下</span><span><i class="lg active"></i>稼働中分析</span><span><i class="lg waiting"></i>データ待ち</span></div>
+</section>
+
+<script type="application/json" id="lineageData">{{ lineage|tojson }}</script>
+{% endblock %}

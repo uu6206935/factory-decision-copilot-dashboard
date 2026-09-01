@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}設定不要データ導入 · {{ app_name }}{% endblock %}
+{% block page_title %}AIデータ導入{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Excelを置くだけで、AIがデータ仕様を理解</h1>
+    <p>列名だけでなく、値・型・分布・IDらしさ・日時らしさ・列同士の関係まで解析し、列意味・結合候補・利用可能AIを自動構成します。実データはローカル処理が標準です。</p>
+  </div>
+  <div class="page-actions"><a class="btn ghost" href="/data-map">データマップ</a><a class="btn primary" href="/investigate">自動分析</a></div>
+</div>
+
+<section class="panel onboarding-hero">
+  <div class="panel-head"><div><span class="section-kicker">設定不要データ導入</span><h2>ファイルをドラッグ&ドロップ</h2></div><span class="state-pill pass">ローカル優先</span></div>
+  <form id="uploadForm" action="/onboarding/upload" method="post" enctype="multipart/form-data">
+    <label class="dropzone" id="dropzone">
+      <input id="fileInput" type="file" name="files" multiple accept=".xlsx,.xlsm,.xls,.csv,.json,.pdf,.docx,.txt,.md,.wav,.png,.jpg,.jpeg,.bmp,.webp">
+      <div class="drop-icon">⇧</div>
+      <b>Excel / CSV / PDF / 画像 / 音声（WAV）をここへ</b>
+      <p>フォーマット変換不要。複数ファイルを同時投入できます。</p>
+      <span class="btn ghost">ファイルを選択</span>
+    </label>
+    <div class="upload-queue" id="uploadQueue"></div>
+    <div class="panel-actions"><button class="btn primary large" type="submit">AIで理解して自動分析</button><small class="muted-xs">アップロード → 列意味推定 → 利用可能機能更新 → 利用可能な分析を自動実行</small></div>
+  </form>
+</section>
+
+<div class="onboarding-flow">
+  <div class="flow-step done"><span>1</span><b>ファイル検出</b><small>{{ file_count }} ファイル</small></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step done"><span>2</span><b>列意味AI</b><small>{{ catalog.schema_summary.mapped_columns }}/{{ catalog.schema_summary.total_columns }} 列解釈済み</small></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step {{ 'warn' if catalog.schema_summary.review_tables else 'done' }}"><span>3</span><b>確認</b><small>{{ catalog.schema_summary.review_tables }} テーブル</small></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step done"><span>4</span><b>結合候補検出</b><small>{{ catalog.schema_summary.join_candidates }} 候補</small></div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step done"><span>5</span><b>AI分析機能</b><small>{{ capabilities.active_count }}/{{ capabilities.total_count }} 稼働</small></div>
+</div>
+
+{% if auto_analysis %}
+<section class="panel auto-analysis-card" id="discovery">
+  <div class="panel-head"><div><span class="section-kicker">投入後の自動分析</span><h2>投入直後の自動分析</h2></div><span class="state-pill {{ 'fail' if auto_analysis.error else 'pass' }}">{{ 'エラー' if auto_analysis.error else '完了' }}</span></div>
+  {% if auto_analysis.error %}<div class="empty-state">{{ auto_analysis.error }}</div>{% else %}
+  <div class="auto-analysis-grid">
+    <div><small>分析モード</small><b>{{ auto_analysis.mode|ja_mode }}</b></div>
+    <div><small>稼働機能</small><b>{{ auto_analysis.active_modules|length }}</b></div>
+    <div><small>最高優先度</small><b>{{ ((auto_analysis.candidates[0].score if auto_analysis.candidates else 0)*100)|round|int }}/100</b></div>
+  </div>
+  <div class="summary-stack">{% for s in auto_analysis.summary[:5] %}<div class="summary-row"><span>✓</span><p>{{ s }}</p></div>{% endfor %}</div>
+  {% if auto_analysis.candidates %}<div class="panel-actions"><a class="btn primary" href="/investigate">詳細分析を開く</a><span class="muted-xs">{{ auto_analysis.candidates[0].label }}</span></div>{% endif %}
+  {% endif %}
+</section>
+{% endif %}
+
+<section class="panel" id="schema">
+  <div class="panel-head"><div><span class="section-kicker">AIによる列意味推定</span><h2>AIが理解した列の意味</h2></div><div class="schema-legend"><span class="map-state auto">95%以上 自動候補</span><span class="map-state review">80〜94% 要確認</span><span class="map-state unresolved">低信頼</span></div></div>
+  {% if catalog.tables %}
+    <div class="schema-table-stack">
+    {% for t in catalog.tables %}
+      <form class="schema-review-card" method="post" action="/onboarding/schema-review">
+        <input type="hidden" name="table_key" value="{{ t.table_key }}">
+        <div class="schema-card-head">
+          <div><b>{{ t.source }}{% if t.sheet %} / {{ t.sheet }}{% endif %}</b><small>{{ t.rows }} 行 · {{ t.columns|length }} 列</small></div>
+          <div class="role-review">
+            <label>データ種別</label>
+            <select name="role">
+              <option value="">未確定</option>
+              {% for role in role_options %}<option value="{{ role }}" {% if t.role==role %}selected{% endif %}>{{ role|ja_role }}</option>{% endfor %}
+            </select>
+            <span class="role-confidence">{{ (t.role_score*100)|round|int }}%</span>
+          </div>
+        </div>
+        <div class="table-scroll"><table class="data-table semantic-table">
+          <thead><tr><th>元の列</th><th>AIの解釈</th><th>信頼度</th><th>型 / 分布</th><th>サンプル</th><th>判断理由</th></tr></thead>
+          <tbody>
+          {% for c in t.column_profiles %}
+            <tr class="mapping-row {{ c.status }}">
+              <td><b>{{ c.raw }}</b><input type="hidden" name="raw_{{ loop.index0 }}" value="{{ c.raw }}"></td>
+              <td><select name="canonical_{{ loop.index0 }}"><option value="">— 未使用 / 未解釈 —</option>{% for key,label in canonical_fields %}<option value="{{ key }}" {% if c.canonical==key %}selected{% endif %}>{{ label }} · {{ key }}</option>{% endfor %}</select></td>
+              <td><div class="confidence-cell"><b>{{ (c.confidence*100)|round|int }}%</b><span class="map-state {{ c.status }}">{{ c.status|ja_status }}</span>{% if c.approval %}<span class="map-state {{ c.approval.status }}">{{ c.approval.status|ja_status }}</span>{% endif %}</div></td>
+              <td><small>{{ c.semantic_type|ja_semantic_type }} / {{ c.dtype|ja_dtype }}</small><small>欠損 {{ (c.null_rate*100)|round|int }}% · 一意率 {{ (c.unique_ratio*100)|round|int }}%</small>{% if c.numeric_ratio > 0.8 %}<small>中央値 {{ c.median if c.median is defined else '-' }}</small>{% endif %}</td>
+              <td><div class="sample-chips">{% for x in c.examples[:5] %}<span>{{ x }}</span>{% endfor %}</div></td>
+              <td><small>{{ c.reasons|map('ja_reason')|join(' / ') }}</small>{% if c.alternatives %}<small class="alt-hint">候補: {% for a in c.alternatives %}{{ a.label }} {{ (a.confidence*100)|round|int }}%{% if not loop.last %}, {% endif %}{% endfor %}</small>{% endif %}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table></div>
+        <div class="schema-review-actions"><label><input type="checkbox" name="learn" checked> この修正を次回から学習</label><button class="btn primary" type="submit">この解釈で取り込む</button></div>
+      </form>
+    {% endfor %}
+    </div>
+  {% else %}<div class="empty-state">Excel / CSV / JSONを取り込むと、ここに列意味推定が表示されます。</div>{% endif %}
+</section>
+
+<section class="panel" id="joins">
+  <div class="panel-head"><div><span class="section-kicker">関連付け候補検出</span><h2>ファイル間の結合候補</h2></div><span class="count-badge">{{ catalog.joins|length }}</span></div>
+  {% if catalog.joins %}
+  <div class="join-list">
+    {% for j in catalog.joins %}
+    <div class="join-card {{ j.governance_status or j.status }}">
+      <div class="join-sides"><div><small>{{ (j.left_role or 'unknown')|ja_role }}</small><b>{{ j.left }}</b></div><span>↔</span><div><small>{{ (j.right_role or 'unknown')|ja_role }}</small><b>{{ j.right }}</b></div></div>
+      <div class="join-key"><span>{{ j.mode|ja_join_mode }}</span><b>{{ j.label|ja_term }}</b><em>{{ (j.confidence*100)|round|int }}%</em></div>{% if j.approval %}<div class="approval-meta">承認状態: <span class="approval-status {{ j.approval.status }}">{{ j.approval.status|ja_status }}</span>{% if j.approval.actor %} · {{ j.approval.actor }}{% endif %}</div>{% endif %}
+      <p>{{ j.reason|ja_reason }}</p>
+      <form method="post" action="/onboarding/join-review"><input type="hidden" name="join_id" value="{{ j.id }}"><input type="hidden" name="accepted" value="{{ 'false' if j.status=='accepted' else 'true' }}"><button class="btn {{ 'ghost' if j.status=='accepted' else 'primary' }}" type="submit">{{ '承認を解除' if j.status=='accepted' else 'この関連付けを承認' }}</button></form>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}<div class="empty-state">共通IDを持つ複数ファイルを投入すると、自動で結合候補を提案します。</div>{% endif %}
+</section>
+
+<section class="panel module-board">
+  <div class="panel-head"><div><span class="section-kicker">分析機能の自動選択</span><h2>列意味の理解後に自動で有効になった分析</h2></div><span class="state-pill pass">{{ capabilities.active_count }}/{{ capabilities.total_count }} 稼働</span></div>
+  <div class="module-status-grid">{% for id,m in capabilities.modules.items() %}<div class="module-status-card {{ 'enabled' if m.enabled else 'waiting' }}"><div class="module-status-head"><span class="module-led"></span><b>{{ m.name }}</b><em>{{ '稼働' if m.enabled else 'データ待ち' }}</em></div><p>{{ m.description }}</p>{% if m.enabled %}<small>{{ m.enrichments|ja_terms if m.enrichments else '単独で利用可能' }}</small>{% else %}<small>必要: {{ m.missing|ja_terms(' + ') }}</small>{% endif %}</div>{% endfor %}</div>
+</section>
+{% endblock %}

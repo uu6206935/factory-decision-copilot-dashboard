@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}設備モニタ · {{ app_name }}{% endblock %}
+{% block page_title %}設備モニタ-ダッシュボード{% endblock %}
+{% block content %}
+<div class="page-head compact-head">
+  <div><h1>{{ equipment.status.equipment_name }}</h1><p>単体設備の稼働状態・生産数・停止要因をリアルタイムに監視します（デモ用ダミーデータ）。</p></div>
+  <div class="page-actions"><a class="btn ghost" href="/equipment/bolt-torque">ボルト締め付け異常検知 →</a></div>
+</div>
+
+<div class="equipment-overview-grid">
+  <div class="equipment-photo">
+    <img src="/static/equipment_photo_welding_unit3.png" alt="{{ equipment.status.equipment_name }}">
+  </div>
+
+  <div class="status-tile {{ 'state-ok' if equipment.status.device_state == '正常' else 'state-error' }}">
+    <div class="status-label">装置状態</div>
+    <div class="status-value">{{ equipment.status.device_state }}</div>
+  </div>
+
+  <div>
+    <div id="gaugeRotation" style="margin-bottom:-10px"></div>
+  </div>
+  <div>
+    <div id="gaugeFlow" style="margin-bottom:-10px"></div>
+  </div>
+</div>
+
+<div class="kpi-tile-row" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
+  <div class="status-tile neutral"><div class="status-label">発生エラー</div><div class="status-value">{{ equipment.status.error_code }}</div></div>
+  <div class="count-tile"><small>本日の製造個数</small><b>{{ equipment.status.today_count }}<span style="font-size:13px;font-weight:700">個</span></b></div>
+  <div class="count-tile"><small>今月の製造個数</small><b>{{ equipment.status.month_count }}<span style="font-size:13px;font-weight:700">個</span></b></div>
+  <div class="count-tile"><small>ライン</small><b style="font-size:16px">元町工場 ライン1</b></div>
+</div>
+
+<div class="chart-panel device-status-timeline" style="margin-bottom:14px">
+  <div class="chart-panel-head"><h3>本日の稼働状況</h3><span>08:00–20:00</span></div>
+  <div id="deviceTimeline"></div>
+</div>
+
+<div class="equipment-lower-grid">
+  <div class="chart-panel">
+    <div class="chart-panel-head"><h3>停止要因内訳</h3><span>本日</span></div>
+    <div id="stopReasonDonut"></div>
+  </div>
+  <div class="chart-panel">
+    <div class="chart-panel-head"><h3>可動/停止時間推移</h3><span>月別</span></div>
+    <div id="uptimeMonthlyChart"></div>
+  </div>
+</div>
+
+<div class="chart-panel" style="margin-top:14px">
+  <div class="chart-panel-head"><h3>停止要因パレート</h3><span>停止時間（分） / 累積比率</span></div>
+  <div id="paretoChart" style="max-width:560px"></div>
+</div>
+
+<script>
+(function(){
+  var g = {{ equipment.gauges|tojson }};
+  FDCharts.gauge(document.getElementById('gaugeRotation'), {
+    value: g.rotation_speed.value, min: g.rotation_speed.min, max: g.rotation_speed.max,
+    unit: g.rotation_speed.label + ' (' + g.rotation_speed.unit + ')',
+    zones: [{upTo:.6,color:'#2fbf82'},{upTo:.85,color:'#f0a63e'},{upTo:1,color:'#e6534a'}]
+  });
+  FDCharts.gauge(document.getElementById('gaugeFlow'), {
+    value: g.flow_rate.value, min: g.flow_rate.min, max: g.flow_rate.max,
+    unit: g.flow_rate.label + ' (' + g.flow_rate.unit + ')',
+    zones: [{upTo:.5,color:'#3b7cff'},{upTo:.8,color:'#2fbf82'},{upTo:1,color:'#f0a63e'}]
+  });
+
+  var devices = {{ equipment.devices|tojson }};
+  var stateColors = {'稼働':'#2fbf82','段取り替え':'#f0a63e','メンテナンス':'#c78bff','設備停止':'#4c5768','その他':'#6fa0ff'};
+  FDCharts.timeline(document.getElementById('deviceTimeline'), {
+    rows: Object.keys(devices).map(function(k){ return {label:k, segments: devices[k]}; }),
+    stateColors: stateColors, dayStart:'08:00', dayEnd:'20:00'
+  });
+
+  var reasons = {{ equipment.stop_reasons|tojson }};
+  var reasonColors = {'段取り替え':'#f0a63e','メンテナンス':'#c78bff','設備停止':'#4c5768','材料不足':'#e6534a','治具不良':'#3b7cff'};
+  FDCharts.donut(document.getElementById('stopReasonDonut'), {
+    segments: reasons.map(function(r){ return {label:r.reason, value:r.percent, color:reasonColors[r.reason]||'#6fa0ff'}; })
+  });
+
+  var monthly = {{ equipment.uptime_monthly|tojson }};
+  FDCharts.stackedBarLine(document.getElementById('uptimeMonthlyChart'), {
+    labels: monthly.labels,
+    series: monthly.series,
+    colors: stateColors,
+    legendLabels: {'稼働':'稼働','段取り替え':'段取り替え','メンテナンス':'メンテナンス','設備停止':'設備停止','その他':'その他'}
+  });
+
+  var pareto = {{ equipment.pareto|tojson }};
+  FDCharts.pareto(document.getElementById('paretoChart'), {
+    labels: pareto.labels, values: pareto.minutes, cumPct: pareto.cum_pct,
+    barColor:'#3b7cff', lineColor:'#f0a63e'
+  });
+})();
+</script>
+{% endblock %}

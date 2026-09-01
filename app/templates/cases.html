@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}ケース履歴 · {{ app_name }}{% endblock %}
+{% block page_title %}ケース履歴{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>調査ケース履歴</h1><p>過去の質問・対象・分析結果を再現性のある形で追跡します。</p></div><a class="btn primary" href="/investigate">新しい調査</a></div>
+<section class="panel"><div class="panel-head"><h2>最近の調査</h2><span class="count-badge">{{ cases|length }}</span></div>{% if cases %}<div class="table-scroll"><table class="data-table"><thead><tr><th>ケース</th><th>対象</th><th>質問</th><th>最優先候補</th><th>作成</th></tr></thead><tbody>{% for c in cases %}<tr><td><b>#{{ c.id }}</b></td><td>{{ c.vehicle_id or '-' }}</td><td class="wide-cell">{{ c.question }}</td><td>{{ c.top_candidate or '-' }}</td><td>{{ c.created_at }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="empty-state">まだ保存されたケースはありません。</div>{% endif %}</section>
+{% endblock %}

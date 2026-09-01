@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}ボルト締め付け異常検知 · {{ app_name }}{% endblock %}
+{% block page_title %}{{ prediction.equipment_name }} - Overview{% endblock %}
+{% block content %}
+<div class="page-head compact-head">
+  <div><h1>設備 ▶ ボルト締め付け異常検知</h1><p>ボルト毎の締め付けトルク・回転角度をAIが監視し、規定値からの逸脱を異常として検知します（デモ用ダミーデータ）。</p></div>
+</div>
+
+<div class="bolt-anomaly-grid">
+  <div class="bolt-photo-col">
+    <div class="bolt-photo">
+      <img src="/static/equipment_photo_bolt_torque_robot.png" alt="{{ prediction.equipment_name }}">
+    </div>
+    <div class="run-state-badge">{{ prediction.run_state }}</div>
+    <div class="bolt-meta-grid">
+      <div><small>Serial Number</small><b>{{ prediction.station_id }}</b></div>
+      <div><small>ライン</small><b>{{ prediction.line }}</b></div>
+      <div><small>目標トルク</small><b>{{ prediction.target_torque_nm }} Nm</b></div>
+      <div><small>許容誤差</small><b>±{{ prediction.tolerance_nm }} Nm</b></div>
+    </div>
+    <div class="parts-grid">
+      <div><small>Good Parts 5m</small><b>{{ prediction.good_parts_5m }}</b></div>
+      <div><small>Total Parts 5m</small><b>{{ prediction.total_parts_5m }}</b></div>
+    </div>
+  </div>
+
+  <div class="prediction-box">
+    <div class="prediction-gauge-head"><small>異常スコア 5m (5分毎に更新)</small></div>
+    <div id="anomalyGauge"></div>
+    <div class="prediction-label">
+      <small>Prediction</small>
+      <b>{{ prediction.prediction }}</b>
+    </div>
+    <div class="prediction-factors">
+      <div class="chart-panel-head"><h3>Prediction Factors</h3></div>
+      <div id="factorsDonut"></div>
+    </div>
+  </div>
+
+  <div class="bolt-charts-col">
+    <div class="chart-panel">
+      <div class="chart-panel-head"><h3>締め付けトルク値</h3><span>Nm</span></div>
+      <div id="torqueChart"></div>
+    </div>
+    <div class="chart-panel">
+      <div class="chart-panel-head"><h3>回転角度</h3><span>deg</span></div>
+      <div id="angleChart"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var pred = {{ prediction|tojson }};
+  FDCharts.gauge(document.getElementById('anomalyGauge'), {
+    value: pred.anomaly_score, min: 0, max: 1, valueLabel: pred.anomaly_score.toFixed(2),
+    zones: [{upTo:.4,color:'#2fbf82'},{upTo:.7,color:'#f0a63e'},{upTo:1,color:'#e6534a'}]
+  });
+
+  var factors = {{ factors|tojson }};
+  var palette = ['#e6534a','#f0a63e','#3b7cff','#3b7cff'];
+  FDCharts.donut(document.getElementById('factorsDonut'), {
+    size: 190,
+    segments: factors.map(function(f,i){ return {label:f.factor, value:f.percent, color:palette[i % palette.length]}; })
+  });
+
+  var torque = {{ torque_series|tojson }};
+  FDCharts.lineChart(document.getElementById('torqueChart'), {
+    labels: torque.labels,
+    series: { bolt1: torque.bolt1, bolt2: torque.bolt2 },
+    colors: { bolt1:'#3b7cff', bolt2:'#e6534a' },
+    legendLabels: { bolt1:'ボルト1 トルク', bolt2:'ボルト2 トルク' },
+    xLabelCount: 6, height: 200
+  });
+
+  var angle = {{ angle_series|tojson }};
+  FDCharts.lineChart(document.getElementById('angleChart'), {
+    labels: angle.labels,
+    series: { bolt1: angle.bolt1, bolt2: angle.bolt2 },
+    colors: { bolt1:'#f0a63e', bolt2:'#3b7cff' },
+    legendLabels: { bolt1:'ボルト1 角度', bolt2:'ボルト2 角度' },
+    xLabelCount: 6, height: 200
+  });
+})();
+</script>
+{% endblock %}

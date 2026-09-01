@@ -1,0 +1,9 @@
+services:
+  factory-copilot:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATA_DIR=/app/sample_data
+    volumes:
+      - ./sample_data:/app/sample_data:ro

@@ -1,0 +1,122 @@
+[
+  {
+    "id": "cam-body-03",
+    "name": "BODY Robot03 Exit Inspection",
+    "equipment_id": "EQ-R03",
+    "target_id": "QV-017",
+    "source": "sample_data/vision_demo_line.png",
+    "enabled": true,
+    "detector": {
+      "type": "demo",
+      "tracking": false,
+      "score_threshold": 0.3
+    },
+    "rules": [
+      {
+        "id": "visible-defect",
+        "type": "forbidden_class",
+        "class_name": "defect",
+        "confidence": 0.45,
+        "severity": "critical",
+        "message": "外観検査で欠陥候補を検出。対象設備・工程ログとの突合を優先してください。"
+      },
+      {
+        "id": "part-present",
+        "type": "required_class",
+        "class_name": "part",
+        "confidence": 0.5,
+        "severity": "warning",
+        "message": "対象部品が確認できません。搬送・カメラ位置・欠品を確認してください。"
+      }
+    ]
+  },
+  {
+    "id": "cam-live-template",
+    "name": "Live Camera Template",
+    "equipment_id": "EQ-CHANGE-ME",
+    "source": "webcam://0",
+    "enabled": false,
+    "detector": {
+      "type": "yolox_onnx",
+      "model": "models/yolox_factory.onnx",
+      "input_size": [
+        640,
+        640
+      ],
+      "score_threshold": 0.35,
+      "nms_threshold": 0.45,
+      "class_names": [
+        "part",
+        "defect",
+        "worker",
+        "tool"
+      ],
+      "tracking": true
+    },
+    "rules": [
+      {
+        "id": "missing-part",
+        "type": "required_class",
+        "class_name": "part",
+        "min_count": 1,
+        "severity": "critical",
+        "message": "部品未検出"
+      },
+      {
+        "id": "defect",
+        "type": "forbidden_class",
+        "class_name": "defect",
+        "severity": "critical",
+        "message": "欠陥候補を検出"
+      },
+      {
+        "id": "worker-in-robot-cell",
+        "type": "zone_forbidden_class",
+        "class_name": "worker",
+        "confidence": 0.45,
+        "polygon": [
+          [
+            80,
+            80
+          ],
+          [
+            560,
+            80
+          ],
+          [
+            560,
+            520
+          ],
+          [
+            80,
+            520
+          ]
+        ],
+        "severity": "critical",
+        "message": "ロボット作業域内に人を検出。安全手順に従って確認してください。"
+      }
+    ]
+  },
+  {
+    "id": "cam-anomaly-template",
+    "name": "Unknown Defect / Anomalib Template",
+    "equipment_id": "EQ-CHANGE-ME",
+    "source": "webcam://0",
+    "enabled": false,
+    "detector": {
+      "type": "anomalib_http",
+      "endpoint": "http://127.0.0.1:8010/infer",
+      "score_threshold": 0.55
+    },
+    "rules": [
+      {
+        "id": "unknown-defect",
+        "type": "forbidden_class",
+        "class_name": "visual_anomaly",
+        "confidence": 0.55,
+        "severity": "critical",
+        "message": "既知正常パターンから外れた外観を検出"
+      }
+    ]
+  }
+]

@@ -1,0 +1,11 @@
+﻿key,value
+equipment_name,ボルト締め付けユニット 1-1
+station_id,BT-1100
+line,元町工場 ライン1
+run_state,Running
+prediction,ANOMALY_DETECTED
+anomaly_score,0.5
+target_torque_nm,45.0
+tolerance_nm,3.0
+good_parts_5m,6
+total_parts_5m,8

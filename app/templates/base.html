@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="ja" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0a0d13">
+  <title>{% block title %}{{ app_name }}{% endblock %}</title>
+  <link rel="stylesheet" href="/static/product-warm-teal-174.css?v=178">
+  <link rel="stylesheet" href="/static/dashboard-dark.css?v=8">
+  <script src="/static/charts.js?v=3"></script>
+</head>
+<body>
+{% set mods = capabilities.modules if capabilities else {} %}
+{% set intel_on = (mods.sensor_monitoring.enabled if mods.sensor_monitoring is defined else false) or (mods.process_intelligence.enabled if mods.process_intelligence is defined else false) or (mods.acoustic_monitoring.enabled if mods.acoustic_monitoring is defined else false) %}
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand-block">
+      <div class="brand-mark"><span>FD</span></div>
+      <div><div class="brand-name">Smart Factory</div><div class="brand-sub">元町工場 · 製造インテリジェンス</div></div>
+    </div>
+    <nav class="nav-tree">
+      <div class="nav-group">
+        <div class="nav-group-title"><span class="nav-icon">⌁</span>設備モニタ</div>
+        <a class="nav-sub-item {% if active_page=='equipment' %}active{% endif %}" href="/equipment"><span class="tick">▶</span>ダッシュボード</a>
+        <a class="nav-sub-item {% if active_page=='bolt_torque' %}active{% endif %}" href="/equipment/bolt-torque"><span class="tick">▶</span>ボルト締め付け異常検知</a>
+        <div class="nav-group nested">
+          <div class="nav-group-title">ライン別設備一括モニタ</div>
+          <a class="nav-sub-item {% if active_page=='line_list' %}active{% endif %}" href="/equipment/lines"><span class="tick">▶</span>ライン一覧</a>
+        </div>
+        <a class="nav-sub-item {% if active_page=='machine_learning' %}active{% endif %}" href="/equipment/machine-learning"><span class="tick">▶</span>機械学習</a>
+        <a class="nav-sub-item placeholder" href="/coming-soon?label={{ '月別設備毎分析画面'|urlencode }}"><span class="tick">▶</span>月別設備毎分析画面<span class="soon-badge">準備中</span></a>
+        <a class="nav-sub-item placeholder" href="/coming-soon?label={{ 'メンテ履歴一覧'|urlencode }}"><span class="tick">▶</span>メンテ履歴一覧<span class="soon-badge">準備中</span></a>
+        <a class="nav-sub-item placeholder" href="/coming-soon?label={{ '加工条件分析'|urlencode }}"><span class="tick">▶</span>加工条件分析<span class="soon-badge">準備中</span></a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-title">異常分析画面</div>
+        <a class="nav-sub-item placeholder" href="/coming-soon?label={{ '分析画面'|urlencode }}"><span class="tick">▶</span>分析画面<span class="soon-badge">準備中</span></a>
+        <a class="nav-sub-item placeholder" href="/coming-soon?label={{ 'アラート一覧'|urlencode }}"><span class="tick">▶</span>アラート一覧<span class="soon-badge">準備中</span></a>
+        <a class="nav-sub-item placeholder" href="/coming-soon?label={{ 'アラート集計一覧'|urlencode }}"><span class="tick">▶</span>アラート集計一覧<span class="soon-badge">準備中</span></a>
+        <a class="nav-sub-item placeholder" href="/coming-soon?label={{ 'Notification一覧'|urlencode }}"><span class="tick">▶</span>Notification一覧<span class="soon-badge">準備中</span></a>
+        <a class="nav-sub-item placeholder" href="/coming-soon?label={{ 'Notification集計一覧'|urlencode }}"><span class="tick">▶</span>Notification集計一覧<span class="soon-badge">準備中</span></a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-title">作業履歴</div>
+        <a class="nav-sub-item placeholder" href="/coming-soon?label={{ 'メンテ履歴一覧'|urlencode }}"><span class="tick">▶</span>メンテ履歴一覧<span class="soon-badge">準備中</span></a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-title">生産モニタ</div>
+        <a class="nav-sub-item {% if active_page=='dashboard' %}active{% endif %}" href="/"><span class="tick">▶</span>ダッシュボード</a>
+      </div>
+
+      <div class="nav-divider"></div>
+      <div class="nav-label">AIコパイロット</div>
+      <a class="nav-item {% if active_page=='investigate' %}active{% endif %}" href="/investigate">
+        <span class="nav-icon">⌕</span><span>AI自動分析</span><small class="nav-auto">自動</small>
+      </a>
+      <a class="nav-item {% if active_page=='onboarding' %}active{% endif %}" href="/onboarding">
+        <span class="nav-icon">⇧</span><span>データ投入・AI理解</span><small class="nav-auto">自動</small>
+      </a>
+      <a class="nav-item {% if active_page=='data_map' %}active{% endif %}" href="/data-map">
+        <span class="nav-icon">⌘</span><span>データマップ</span><small>データ系譜</small>
+      </a>
+      <a class="nav-item {% if active_page=='vision' %}active{% endif %} {% if not (mods.vision_inspection.enabled if mods.vision_inspection is defined else false) %}nav-disabled{% endif %}" href="/vision">
+        <span class="nav-icon">◉</span><span>画像検査AI</span><small>{{ '稼働' if (mods.vision_inspection.enabled if mods.vision_inspection is defined else false) else '待機' }}</small>
+      </a>
+      <a class="nav-item {% if active_page=='intelligence' %}active{% endif %} {% if not intel_on %}nav-disabled{% endif %}" href="/intelligence">
+        <span class="nav-icon">⌁</span><span>工程・設備AI</span><small>{{ '稼働' if intel_on else '待機' }}</small>
+      </a>
+      <a class="nav-item {% if active_page=='cases' %}active{% endif %}" href="/cases-ui">
+        <span class="nav-icon">◫</span><span>ケース履歴</span>
+      </a>
+      <div class="nav-label">システム管理</div>
+      <a class="nav-item {% if active_page=='data' %}active{% endif %}" href="/data">
+        <span class="nav-icon">◇</span><span>データ基盤</span>
+      </a>
+      <a class="nav-item {% if active_page=='engineering' %}active{% endif %}" href="/engineering">
+        <span class="nav-icon">⚙</span><span>システム管理</span>
+      </a>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="system-mini"><span class="pulse-dot"></span><span>{{ capabilities.active_count if capabilities else 0 }} モジュール稼働中</span></div>
+      <div class="muted-xs">v{{ version }} · {{ vector_backend }}</div>
+    </div>
+  </aside>
+
+  <div class="main-shell">
+    <header class="topbar">
+      <button class="icon-btn mobile-only" id="menuToggle" aria-label="メニュー">☰</button>
+      <div class="topbar-title"><span class="eyebrow">Smart Factory Management · 元町工場</span><b>{% block page_title %}運用センター{% endblock %}</b></div>
+      <div class="topbar-right">
+        <span class="status-chip"><i class="dot ok"></i>AI {{ capabilities.active_count if capabilities else 0 }}/{{ capabilities.total_count if capabilities else 0 }} 稼働</span>
+        <span class="status-chip"><i class="dot"></i>データ {{ data_quality.status|ja_status }}</span>
+        <span class="topbar-clock" id="topbarClock">--:--:--</span>
+        <button class="bell-btn" aria-label="通知"><span>🔔</span><span class="bell-count">0</span></button>
+        <button class="bell-btn" aria-label="アラート"><span>⚠</span><span class="bell-count">0</span></button>
+        <span class="avatar">操</span>
+      </div>
+    </header>
+
+    <main class="content">
+      {% block content %}{% endblock %}
+      <div class="powered-by" style="text-align:right;margin-top:26px">POWERED BY FACTORY DECISION COPILOT</div>
+    </main>
+  </div>
+</div>
+<script src="/static/product.js?v={{ version }}"></script>
+<script>
+(function(){
+  var el = document.getElementById('topbarClock');
+  if (!el) return;
+  function tick(){
+    var d = new Date();
+    var p = function(n){ return String(n).padStart(2,'0'); };
+    el.textContent = d.getFullYear()+'/'+p(d.getMonth()+1)+'/'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+  }
+  tick();
+  setInterval(tick, 1000);
+})();
+</script>
+</body>
+</html>

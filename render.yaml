@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: factory-decision-copilot
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /healthz
+    envVars:
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: AUTH_MODE
+        value: off
+      - key: DEEPSEEK_SEND_SAMPLE_VALUES
+        value: "false"
+      - key: DEEPSEEK_SEND_DOCUMENT_TEXT
+        value: "false"
+      - key: DEEPSEEK_SEND_STRUCTURED_EVIDENCE
+        value: "false"
+
+# Notes:
+# - DEEPSEEK_API_KEY is intentionally left blank here (sync: false). Set the real
+#   value in the Render dashboard (Environment tab) after the first deploy, never
+#   in this file or in git.
+# - The free plan's disk is ephemeral: runtime/factory_copilot.db (cases, audit
+#   log, schema memory) resets on every redeploy/restart. For persistence, upgrade
+#   to a paid instance type and attach a Render Disk mounted at /app/runtime, or
+#   point DATABASE_URL at an external Postgres instance.
+# - The free plan has 512MB RAM. This image loads pandas/scikit-learn/opencv; if
+#   the service fails to boot or crashes under load, upgrade the plan.

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{{ label }} · {{ app_name }}{% endblock %}
+{% block page_title %}{{ label }}{% endblock %}
+{% block content %}
+<div class="panel coming-soon-panel">
+  <div class="coming-soon-icon">⚙</div>
+  <h1>{{ label }}</h1>
+  <p>この画面は現在のデモには含まれていません。実データが接続され次第、このメニューから利用できるようになります。<br>今すぐ試せる画面は「設備モニタ」「ボルト締め付け異常検知」「AI自動分析」です。</p>
+  <a class="btn primary" href="/">ダッシュボードに戻る</a>
+</div>
+{% endblock %}

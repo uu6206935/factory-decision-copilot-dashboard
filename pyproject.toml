@@ -1,0 +1,8 @@
+[project]
+name = "factory-decision-copilot"
+version = "1.7.4rc1"
+description = "Adaptive manufacturing intelligence platform with data-optional AI modules"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

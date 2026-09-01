@@ -1,0 +1,3 @@
+﻿metric_key,metric_label,value,min,max,unit
+rotation_speed,回転速度,77.9,0,150,RPM
+flow_rate,流量,28,0,100,L/min

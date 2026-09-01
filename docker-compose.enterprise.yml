@@ -1,0 +1,80 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.enterprise
+    ports: ["8000:8000"]
+    environment:
+      DATA_DIR: /data
+      RUNTIME_DIR: /runtime
+      DATABASE_URL: postgresql+psycopg://factory:factory@postgres:5432/factory
+      VECTOR_BACKEND: qdrant
+      QDRANT_URL: http://qdrant:6333
+      AUTH_MODE: off   # demo default; switch to oidc behind an authenticated reverse proxy
+      OIDC_ISSUER: http://keycloak:8080/realms/factory
+      OIDC_AUDIENCE: factory-copilot
+      LLM_MODE: off
+    volumes:
+      - ./sample_data:/data:ro
+      - ./runtime:/runtime
+    depends_on:
+      postgres: {condition: service_healthy}
+      qdrant: {condition: service_started}
+    healthcheck:
+      test: ["CMD","python","-c","import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+  vision-worker:
+    profiles: ["vision"]
+    build:
+      context: .
+      dockerfile: Dockerfile.enterprise
+    command: ["python","scripts/run_vision_worker.py","--interval","2"]
+    environment:
+      DATA_DIR: /data
+      RUNTIME_DIR: /runtime
+      DATABASE_URL: postgresql+psycopg://factory:factory@postgres:5432/factory
+    volumes:
+      - ./sample_data:/data:ro
+      - ./runtime:/runtime
+      - ./config:/app/config:ro
+      - ./models:/app/models:ro
+    depends_on:
+      postgres: {condition: service_healthy}
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: factory
+      POSTGRES_PASSWORD: factory
+      POSTGRES_DB: factory
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U factory"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports: ["6333:6333"]
+    volumes: ["qdrant_data:/qdrant/storage"]
+  prometheus:
+    image: prom/prometheus:latest
+    ports: ["9090:9090"]
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on: [app]
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.3
+    command: ["start-dev","--import-realm"]
+    ports: ["8080:8080"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    volumes:
+      - ./deploy/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+volumes:
+  postgres_data:
+  qdrant_data:

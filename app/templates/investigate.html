@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}自動分析 · {{ app_name }}{% endblock %}
+{% block page_title %}自動分析ワークスペース{% endblock %}
+{% block content %}
+<div class="page-head compact-head"><div><h1>品質トラブル原因調査・利用可能データから自動分析</h1><p>品質＋工程がなくても止まりません。質問内容と現在のデータを見て、品質・設備・工程・保全・部品・文書検索のうち利用できる分析へ自動で振り分けます。</p></div></div>
+<section class="investigate-box">
+  <form method="post" action="/ask" class="investigate-form"><div class="search-leading">⌕</div><textarea name="question" placeholder="例：設備ログから異常設備をランキングして">{{ question }}</textarea><button class="btn primary large" type="submit">自動分析</button></form>
+  <div class="quick-prompts"><span>クイック:</span>
+    {% if capabilities.modules.root_cause.enabled %}<button data-prompt="QV-017の品質NGの原因候補を調べて。停止と継続も比較して">品質×工程</button>{% endif %}
+    {% if capabilities.modules.sensor_monitoring.enabled %}<button data-prompt="設備ログから異常度が高い設備と信号をランキングして">設備異常</button>{% endif %}
+    {% if capabilities.modules.quality_trends.enabled %}<button data-prompt="品質データからNG傾向を分析して">品質傾向</button>{% endif %}
+    {% if capabilities.modules.process_intelligence.enabled %}<button data-prompt="工程履歴からボトルネックと工程逸脱を分析して">工程分析</button>{% endif %}
+    {% if capabilities.modules.maintenance_intelligence.enabled %}<button data-prompt="保全履歴から再発傾向を整理して">保全履歴</button>{% endif %}
+    {% if capabilities.modules.rag_assistant.enabled %}<button data-prompt="登録文書から関連する過去事例と手順を探して">文書検索</button>{% endif %}
+  </div>
+</section>
+
+<div class="analysis-availability"><span>現在稼働中:</span>{% for id in capabilities.active_modules %}<b>{{ capabilities.modules[id].name }}</b>{% endfor %}</div>
+
+{% if result %}
+<div class="result-header"><div><span class="section-kicker">ケース #{{ case_id }} · {{ result.mode|ja_mode }}</span><h2>{{ result.title }}</h2><div class="result-meta"><span>対象 {{ result.vehicle_id or '全体' }}</span><span>使用分析 {{ result.active_modules|length }}件</span><span>参照元 {{ result.retrieval|length if result.retrieval else '-' }}件</span></div></div><div class="confidence-box"><small>最優先度</small><b>{{ ((result.candidates[0].score if result.candidates else 0)*100)|round|int }}</b><span>/100</span></div></div>
+
+{% if result.missing_for_deeper %}<div class="upgrade-strip"><b>追加すると分析が深くなるデータ</b><span>{{ result.missing_for_deeper|ja_terms }}</span></div>{% endif %}
+<div class="tabbar" data-tabs><button class="active" data-tab="overview">概要</button><button data-tab="evidence">根拠</button><button data-tab="tables">分析テーブル</button><button data-tab="trace">トレース</button></div>
+<div class="tabpane active" data-pane="overview">
+  <div class="analysis-grid">
+    <section class="panel"><div class="panel-head"><div><span class="section-kicker">自動分析サマリー</span><h2>分析サマリー</h2></div></div><div class="summary-stack">{% for s in result.summary %}<div class="summary-row"><span>✓</span><p>{{ s }}</p></div>{% endfor %}</div>{% if answer %}<div class="ai-answer"><div class="ai-label">AIコパイロット回答</div>{{ answer|markdown }}</div>{% endif %}</section>
+    <section class="panel"><div class="panel-head"><div><span class="section-kicker">確認優先順位</span><h2>原因候補ランキング / 確認候補</h2></div></div>{% if result.candidates %}<div class="rank-list">{% for c in result.candidates[:6] %}<div class="rank-card {% if loop.index==1 %}top-rank{% endif %}"><div class="rank-num">{{ loop.index }}</div><div class="rank-main"><div class="rank-title"><b>{{ c.label }}</b><span>{{ (c.score*100)|round|int }}/100</span></div><div class="rank-bar"><i style="width:{{ (c.score*100)|round|int }}%"></i></div><small>{{ c.evidence[0].text if c.evidence else '根拠確認中' }}</small></div></div>{% endfor %}</div>{% else %}<div class="empty-state">構造化ランキングはありません。文書検索結果は左の回答に表示されます。</div>{% endif %}</section>
+  </div>
+  {% if result.scenarios %}<section class="panel decision-panel"><div class="panel-head"><div><span class="section-kicker">意思決定支援</span><h2>停止 / 継続の比較</h2></div><span class="muted-xs">品質×工程がある場合のみ</span></div><div class="scenario-grid">{% for s in result.scenarios %}<div class="scenario-card"><div class="scenario-name">{{ s.name }}</div><div class="scenario-kpis"><div><small>生産ロス</small><b>{{ s.production_loss_units|round(1) }}<em>台</em></b></div><div><small>予想NG</small><b>{{ s.expected_defects|round(1) }}<em>台</em></b></div></div><p>{{ s.note }}</p></div>{% endfor %}</div></section>{% endif %}
+</div>
+<div class="tabpane" data-pane="evidence"><section class="panel"><div class="panel-head"><div><span class="section-kicker">根拠チェーン</span><h2>候補ごとの根拠</h2></div></div>{% if result.candidates %}{% for c in result.candidates %}<details class="evidence-detail" {% if loop.index==1 %}open{% endif %}><summary><span><b>#{{ loop.index }} {{ c.label }}</b><small>{{ (c.score*100)|round|int }}/100 · {{ c.category|ja_kind }}</small></span></summary><div class="detail-body"><div class="evidence-list">{% for e in c.evidence %}<div class="evidence-row"><span class="source-tag">{{ e.kind|ja_kind }}</span><div><b>{{ e.text }}</b><small>{{ e.source }}</small></div></div>{% endfor %}</div>{% if c.recommended_checks %}<div class="checklist"><h4>次に確認すること</h4>{% for x in c.recommended_checks %}<div>□ {{ x }}</div>{% endfor %}</div>{% endif %}</div></details>{% endfor %}{% else %}<div class="empty-state">候補ランキングがないモードです。</div>{% endif %}</section></div>
+<div class="tabpane" data-pane="tables">{% if result.tables %}{% for name,table in result.tables.items() %}<section class="panel table-panel"><div class="panel-head"><h2>{{ name }}</h2></div><div class="table-scroll">{{ table|safe }}</div></section>{% endfor %}{% else %}<section class="panel"><div class="empty-state">表示できる構造化テーブルはありません。</div></section>{% endif %}</div>
+<div class="tabpane" data-pane="trace"><section class="panel"><div class="panel-head"><div><span class="section-kicker">今回使用した分析</span><h2>今回使った分析</h2></div></div><div class="module-pills">{% for id in result.active_modules %}<span>{{ capabilities.modules[id].name if id in capabilities.modules else (id|ja_term) }}</span>{% endfor %}</div>{% if result.vehicle_id %}<div class="trace-canvas"><div class="trace-node vehicle"><small>対象</small><b>{{ result.vehicle_id }}</b></div>{% for c in result.candidates[:3] %}<div class="trace-arrow">→</div><div class="trace-node equipment"><small>{{ c.category|ja_kind }}</small><b>{{ c.label }}</b><span>{{ (c.score*100)|round|int }}/100</span></div>{% endfor %}</div>{% endif %}</section></div>
+{% else %}
+<div class="starter-grid"><section class="panel"><span class="section-kicker">必須データなし</span><h2>全部揃っていなくてOK</h2><div class="step-list"><div><span>Q</span><p><b>品質だけ</b><small>NG傾向・不具合内訳</small></p></div><div><span>S</span><p><b>設備ログだけ</b><small>異常監視・ドリフト・閾値予測</small></p></div><div><span>P</span><p><b>工程だけ</b><small>工程パターン・逸脱・ボトルネック</small></p></div><div><span>R</span><p><b>PDF文書だけ</b><small>現場文書検索アシスタント</small></p></div></div></section><section class="panel"><span class="section-kicker">現在のデータ</span><h2>現在のデータ</h2><div class="coverage-grid"><div><b>{{ file_count }}</b><span>ファイル</span></div><div><b>{{ capabilities.active_count }}</b><span>AI稼働</span></div><div><b>{{ capabilities.total_count-capabilities.active_count }}</b><span>データ待ち</span></div></div></section></div>
+{% endif %}
+{% endblock %}

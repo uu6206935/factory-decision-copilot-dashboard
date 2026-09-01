@@ -1,0 +1,6 @@
+﻿line_key,line_label,oee_pct,availability_pct,achievement_pct,quality_pct,plan_qty,actual_qty
+all,工場全体,82,95,89,96,153000,152000
+line1,ライン1,81,92,92,96,3800,37500
+line2,ライン2,62,76,85,96,3700,35000
+line3,ライン3,88,97,94,97,3900,38200
+line4,ライン4,74,88,79,95,3600,33800

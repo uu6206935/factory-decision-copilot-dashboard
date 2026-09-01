@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}機械学習 · {{ app_name }}{% endblock %}
+{% block page_title %}機械学習{% endblock %}
+{% block content %}
+<div class="page-head compact-head">
+  <div><h1>設備モニタ ▶ 機械学習</h1><p>ホテリング理論に基づく異常検知モデルの検知結果と学習履歴を可視化します（デモ用ダミーデータ）。</p></div>
+</div>
+
+<div class="ml-grid">
+  <div class="ml-col-stack">
+    <div class="ml-panel">
+      <div class="ml-panel-head">現在の状態</div>
+      <div class="ml-state-hero {{ 'state-anomaly' if ml.summary.state != '正常' else '' }}">{{ ml.summary.state }}</div>
+    </div>
+    <div class="ml-panel">
+      <div class="ml-panel-head">異常・正常の割合</div>
+      <div class="ml-panel-body"><div id="anomalyRatioDonut"></div></div>
+    </div>
+  </div>
+  <div class="ml-panel">
+    <div class="ml-panel-head">異常検知結果</div>
+    <div class="ml-panel-body"><div id="anomalyDetectionChart"></div></div>
+  </div>
+</div>
+
+<div class="ml-lower-grid">
+  <div class="ml-panel">
+    <div class="ml-panel-head">モデル学習履歴</div>
+    <div class="ml-table-toolbar"><a href="#">Add a filter</a></div>
+    <div class="ml-table-scroll">
+      <table class="ml-history-table">
+        <thead><tr><th>モデル作成日</th><th>アルゴリズム</th><th>パラメータ : mean</th><th>パラメータ : variance</th></tr></thead>
+        <tbody>
+          {% for row in ml.history %}
+          <tr><td>{{ row.created_at }}</td><td>{{ row.algorithm }}</td><td>{{ row.mean }}</td><td>{{ row.variance }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="ml-table-footer">
+      <span>Showing 1 to {{ ml.history|length }} of {{ ml.history|length + 4 }} entries</span>
+      <div class="ml-pagination"><span class="active">1</span><span>2</span></div>
+    </div>
+  </div>
+  <div class="ml-panel">
+    <div class="ml-panel-head">パラメータの推移</div>
+    <div class="ml-panel-body"><div id="parameterTrendChart"></div></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var ml = {{ ml|tojson }};
+
+  FDCharts.donut(document.getElementById('anomalyRatioDonut'), {
+    size: 190,
+    segments: [
+      { label: '異常', value: ml.summary.anomaly_pct, color: '#3aa65a' },
+      { label: '正常', value: ml.summary.normal_pct, color: '#e0a72a' }
+    ],
+    legendLayout: 'list',
+    legendTitle: 'Percentage',
+    legendPercent: true,
+    showLabels: false
+  });
+
+  FDCharts.dualAxisAreaChart(document.getElementById('anomalyDetectionChart'), {
+    height: 300,
+    labels: ml.anomaly_series.labels,
+    dateLabels: ml.anomaly_series.date_labels,
+    left: { label: '取得値', values: ml.anomaly_series.get_value, color: '#3aa65a', min: 0, max: 20 },
+    right: { label: '異常スコア', values: ml.anomaly_series.anomaly_score, color: '#e0a72a', min: 0, max: 12 },
+    threshold: { value: ml.summary.threshold, axis: 'right', color: '#e6197a', label: '閾値' },
+    xLabelCount: 14
+  });
+
+  FDCharts.lineChart(document.getElementById('parameterTrendChart'), {
+    height: 260,
+    labels: ml.trend.labels,
+    series: { mean: ml.trend.mean, variance: ml.trend.variance },
+    colors: { mean: '#3aa65a', variance: '#e0a72a' },
+    legendLabels: { mean: 'mean', variance: 'variance' },
+    yMin: 8, yMax: 16,
+    markers: true,
+    xLabelCount: 13
+  });
+})();
+</script>
+{% endblock %}

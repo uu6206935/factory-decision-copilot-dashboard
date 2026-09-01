@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}生産モニタ・ダッシュボード · {{ app_name }}{% endblock %}
+{% block page_title %}生産モニタ-ダッシュボード{% endblock %}
+{% block content %}
+<div class="factory-title-block">
+  <span class="factory-kicker">工場名</span>
+  <h1>{{ dashboard.factory_name }}</h1>
+</div>
+
+<div class="section-band">工場全体</div>
+{% set f = dashboard.factory_kpi %}
+<div class="kpi-tile-row">
+  <div class="kpi-tile {{ f.oee_state }}"><div class="kpi-label">OEE</div><div class="kpi-value">{{ f.oee }}<span class="kpi-unit">%</span></div></div>
+  <div class="kpi-tile {{ f.availability_state }}"><div class="kpi-label">稼働率</div><div class="kpi-value">{{ f.availability }}<span class="kpi-unit">%</span></div></div>
+  <div class="kpi-tile {{ f.achievement_state }}"><div class="kpi-label">製造達成率</div><div class="kpi-value">{{ f.achievement }}<span class="kpi-unit">%</span></div></div>
+  <div class="kpi-tile {{ f.quality_state }}"><div class="kpi-label">良品率</div><div class="kpi-value">{{ f.quality }}<span class="kpi-unit">%</span></div></div>
+  <div class="kpi-tile info"><div class="kpi-label">計画数</div><div class="kpi-value">{{ '{:,}'.format(f.plan_qty) }}<span class="kpi-unit">個</span></div></div>
+  <div class="kpi-tile {{ f.availability_state }}"><div class="kpi-label">実績数</div><div class="kpi-value">{{ '{:,}'.format(f.actual_qty) }}<span class="kpi-unit">個</span></div></div>
+</div>
+
+<div class="chart-row" style="margin-top:16px">
+  <div class="chart-panel">
+    <div class="chart-panel-head"><h3>全設備OEE推移</h3><span>本日 00:00–24:00</span></div>
+    <div id="oeeTrendChart"></div>
+  </div>
+  <div class="chart-panel">
+    <div class="chart-panel-head"><h3>生産進捗</h3><span>実績 / 目標</span></div>
+    <div id="progressChart"></div>
+  </div>
+</div>
+
+{% for line in dashboard.lines %}
+<div class="section-band">{{ line.label }}</div>
+<div class="kpi-tile-row">
+  <div class="kpi-tile {{ line.oee_state }}"><div class="kpi-label">OEE</div><div class="kpi-value">{{ line.oee }}<span class="kpi-unit">%</span></div></div>
+  <div class="kpi-tile {{ line.availability_state }}"><div class="kpi-label">稼働率</div><div class="kpi-value">{{ line.availability }}<span class="kpi-unit">%</span></div></div>
+  <div class="kpi-tile {{ line.achievement_state }}"><div class="kpi-label">製造達成率</div><div class="kpi-value">{{ line.achievement }}<span class="kpi-unit">%</span></div></div>
+  <div class="kpi-tile {{ line.quality_state }}"><div class="kpi-label">良品率</div><div class="kpi-value">{{ line.quality }}<span class="kpi-unit">%</span></div></div>
+  <div class="kpi-tile info"><div class="kpi-label">計画数</div><div class="kpi-value">{{ '{:,}'.format(line.plan_qty) }}<span class="kpi-unit">個</span></div></div>
+  <div class="kpi-tile {{ line.availability_state }}"><div class="kpi-label">実績数</div><div class="kpi-value">{{ '{:,}'.format(line.actual_qty) }}<span class="kpi-unit">個</span></div></div>
+</div>
+{% endfor %}
+
+<script>
+(function(){
+  var oee = {{ dashboard.oee_trend|tojson }};
+  FDCharts.lineChart(document.getElementById('oeeTrendChart'), {
+    labels: oee.labels,
+    series: { line1: oee.series.line1, line2: oee.series.line2, line3: oee.series.line3, line4: oee.series.line4, all: oee.series.all },
+    colors: { line1:'#2fbf82', line2:'#f0a63e', line3:'#6fa0ff', line4:'#c78bff', all:'#e6534a' },
+    legendLabels: { line1:'ライン1', line2:'ライン2', line3:'ライン3', line4:'ライン4', all:'全体' },
+    yMin: 60, yMax: 100, xLabelCount: 7
+  });
+
+  var prog = {{ dashboard.production_progress|tojson }};
+  FDCharts.stackedBarLine(document.getElementById('progressChart'), {
+    labels: prog.labels,
+    series: { line1: prog.line1, line2: prog.line2, line3: prog.line3, line4: prog.line4 },
+    colors: { line1:'#2fbf82', line2:'#f0a63e', line3:'#6fa0ff', line4:'#c78bff' },
+    legendLabels: { line1:'ライン1', line2:'ライン2', line3:'ライン3', line4:'ライン4' },
+    xLabelCount: 8,
+    line: { values: prog.cumulative_actual, color:'#e6534a', label:'累計実績', values2: prog.target, color2:'#3b7cff', label2:'目標' }
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}システム管理 · {{ app_name }}{% endblock %}
+{% block page_title %}エンジニアリングコンソール{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>システムと外部連携</h1><p>運用担当の画面から一段深く、認証・検索・API・監視の状態を確認します。</p></div></div>
+<div class="engineering-grid">
+<section class="panel"><div class="panel-head"><div><span class="section-kicker">実行環境</span><h2>システム状態</h2></div><span class="state-pill pass">準備完了</span></div><div class="config-list"><div><span>バージョン</span><code>{{ version }}</code></div><div><span>認証</span><code>{{ auth_mode }}</code></div><div><span>検索方式</span><code>{{ vector_backend }}</code></div><div><span>LLM</span><code>{{ llm_model }} / {{ '接続済み' if deepseek.available else 'APIキー未設定' }}</code></div><div><span>データフォルダ</span><code>{{ data_dir }}</code></div></div></section>
+<section class="panel"><div class="panel-head"><div><span class="section-kicker">稼働監視</span><h2>監視エンドポイント</h2></div></div><div class="endpoint-list"><a href="/healthz"><code>GET /healthz</code><span>プロセス稼働状態</span></a><a href="/readyz"><code>GET /readyz</code><span>データ準備状態</span></a><a href="/metrics"><code>GET /metrics</code><span>Prometheusメトリクス</span></a></div></section>
+<section class="panel span-2"><div class="panel-head"><div><span class="section-kicker">API</span><h2>主要API</h2></div></div><div class="api-grid"><div><code>POST /api/v1/analyze</code><p>利用可能データへ自動ルーティング</p></div><div><code>GET /api/v1/capabilities</code><p>自動検出された機能ON/OFF</p></div><div><code>GET /api/v1/catalog</code><p>データカタログ</p></div><div><code>GET /api/v1/data-quality</code><p>データ品質チェック</p></div><div><code>POST /api/v1/ingest/scan</code><p>再取込</p></div><div><code>GET /api/v1/cases</code><p>ケース履歴</p></div><div><code>GET /api/v1/audit</code><p>監査ログ</p></div><div><code>GET /api/v1/lineage</code><p>ファイル→テーブル→列→結合→分析の関係グラフ</p></div></div></section>
+<section class="panel span-2"><div class="panel-head"><div><span class="section-kicker">外部システム接続</span><h2>接続レイヤ</h2></div></div><div class="connector-grid"><div><b>MES / QMS</b><span>CSV · Excel · REST</span></div><div><b>設備</b><span>MQTT · OPC-UA連携</span></div><div><b>ベクトル検索</b><span>ローカル · Qdrant</span></div><div><b>認証・ID</b><span>APIキー · OIDC / Keycloak</span></div><div><b>モデル運用</b><span>MLflow連携</span></div><div><b>監視</b><span>Prometheus / OTEL対応</span></div></div></section>
+</div>
+{% endblock %}
