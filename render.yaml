@@ -6,8 +6,10 @@ services:
     dockerfilePath: ./Dockerfile
     healthCheckPath: /healthz
     envVars:
+      # Set in the Render dashboard (Environment tab), never in this file:
+      # the repo is public, so anything committed here is readable by anyone.
       - key: DEEPSEEK_API_KEY
-        value: sk-854d801704094f2e8d9ba28021fd8ddf
+        sync: false
       # Link-only gate: the site 404s unless the visitor arrives with
       # ?k=<this value> once (it then sticks as a cookie).
       - key: ACCESS_KEY
@@ -24,11 +26,10 @@ services:
         value: "true"
 
 # Notes:
-# - DEEPSEEK_API_KEY is committed here at the owner's explicit request so the
-#   public demo's AI assistants work without any dashboard setup. This key is a
-#   spent/disposable one that is scheduled to be rotated. Because it is in the
-#   git history permanently, rotating means revoking it at DeepSeek -- editing
-#   this file alone does not un-publish it.
+# - DEEPSEEK_API_KEY is deliberately NOT committed (sync: false). Set it in the
+#   Render dashboard so it never lands in this public repo or its ZIP download.
+#   An earlier, now-superseded key was committed here; because git history keeps
+#   it forever, that old key has to be revoked at DeepSeek to actually retire it.
 # - The free plan's disk is ephemeral: runtime/factory_copilot.db (cases, audit
 #   log, schema memory) resets on every redeploy/restart. For persistence, upgrade
 #   to a paid instance type and attach a Render Disk mounted at /app/runtime, or
