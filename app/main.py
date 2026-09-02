@@ -81,6 +81,10 @@ app.mount("/runtime-assets", StaticFiles(directory=str(VISION_DIR)), name="runti
 async def disable_ui_cache(request: Request, call_next):
     response = await call_next(request)
     path = request.url.path
+    # This deployment is meant to be shared by link only, never found through a
+    # search engine, so every response opts out of indexing (the matching
+    # <meta name="robots"> tag in base.html covers renderers that ignore it).
+    response.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive, nosnippet"
     if path.startswith("/static/") or path.startswith("/runtime-assets/"):
         # Static assets are cache-busted via an explicit ?v= query param on every
         # reference (see base.html), so they are safe to cache aggressively.
@@ -444,6 +448,12 @@ def reload_ui(user: UserContext = Depends(require_role("engineer"))):
         INGEST_COUNT.labels(status="error").inc()
         raise
     return RedirectResponse(url="/data", status_code=303)
+
+
+@app.get("/robots.txt", response_class=Response)
+def robots_txt():
+    """Link-only deployment: keep every crawler out of the whole site."""
+    return Response("User-agent: *\nDisallow: /\n", media_type="text/plain")
 
 
 @app.get("/healthz")

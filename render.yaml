@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: factory-decision-copilot
+    name: fdc-nbcy8qhf24fs
     runtime: docker
     plan: free
     dockerfilePath: ./Dockerfile
