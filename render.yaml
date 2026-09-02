@@ -7,20 +7,24 @@ services:
     healthCheckPath: /healthz
     envVars:
       - key: DEEPSEEK_API_KEY
-        sync: false
+        value: sk-854d801704094f2e8d9ba28021fd8ddf
       - key: AUTH_MODE
         value: off
       - key: DEEPSEEK_SEND_SAMPLE_VALUES
         value: "false"
       - key: DEEPSEEK_SEND_DOCUMENT_TEXT
         value: "false"
+      # The dashboard AI assistants answer from the dashboard_data/*.csv
+      # snapshots, so the structured evidence has to be sent to the model.
       - key: DEEPSEEK_SEND_STRUCTURED_EVIDENCE
-        value: "false"
+        value: "true"
 
 # Notes:
-# - DEEPSEEK_API_KEY is intentionally left blank here (sync: false). Set the real
-#   value in the Render dashboard (Environment tab) after the first deploy, never
-#   in this file or in git.
+# - DEEPSEEK_API_KEY is committed here at the owner's explicit request so the
+#   public demo's AI assistants work without any dashboard setup. This key is a
+#   spent/disposable one that is scheduled to be rotated. Because it is in the
+#   git history permanently, rotating means revoking it at DeepSeek -- editing
+#   this file alone does not un-publish it.
 # - The free plan's disk is ephemeral: runtime/factory_copilot.db (cases, audit
 #   log, schema memory) resets on every redeploy/restart. For persistence, upgrade
 #   to a paid instance type and attach a Render Disk mounted at /app/runtime, or
