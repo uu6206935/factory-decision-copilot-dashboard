@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+{% block title %}ナットランナーPU-01 · {{ app_name }}{% endblock %}
+{% block page_title %}ナットランナーPU-01{% endblock %}
+{% block content %}
+<div class="nr-head-row">
+  <div class="nr-head-title">
+    <span class="nr-status-dot"></span>
+    <h1>{{ nr.meta.equipment_name }}</h1>
+    <span class="nr-tag">{{ nr.meta.tag }}</span>
+  </div>
+  <div class="nr-tabs">
+    <span class="active">概要</span>
+    <span>時系列分析</span>
+    <span>閾値分析</span>
+    <span>履歴</span>
+  </div>
+</div>
+<div class="nr-head-sub">{{ nr.meta.area_line }}</div>
+
+<div class="nr-body">
+  <div class="nr-main">
+    <div class="nr-row-3col">
+      <div class="nr-panel">
+        <div class="nr-panel-body">
+          <div class="nr-score-head">⚠ 異常スコア（Autoencoder）</div>
+          <div class="nr-score-value"><b>{{ nr.latest_score|round|int }}</b><span>/100</span><span class="nr-score-badge">{{ nr.alert_info.latest_alert_level }}</span></div>
+          <div class="nr-score-threshold">閾値：70</div>
+          <div id="nrScoreMini"></div>
+        </div>
+      </div>
+      <div class="nr-panel">
+        <div class="nr-panel-body nr-alert-info">
+          <div class="row"><span>最新アラート時刻</span><span class="level-pill"><i></i>{{ nr.alert_info.latest_alert_level }}</span></div>
+          <div class="row"><span>最新アラート検出時刻</span><span>{{ nr.alert_info.latest_alert_time }}</span></div>
+          <div class="row"><span>アラート判定</span><span>{{ nr.alert_info.alert_verdict }}</span></div>
+          <div class="row"><span>検知継続</span><span>{{ nr.alert_info.detection_streak }}</span></div>
+          <div class="row"><span>モデル</span><span>{{ nr.alert_info.model_name }}</span></div>
+          <div class="row"><span>学習データ期間</span><span>{{ nr.alert_info.training_period }}</span></div>
+          <button class="nr-detail-btn">詳細を表示</button>
+        </div>
+      </div>
+      <div class="nr-panel">
+        <div class="nr-panel-head">設備構成概要</div>
+        <div class="nr-panel-body" style="padding-top:6px">
+          <div class="nr-structure-row">
+            {% for s in nr.structure %}
+            {% if not loop.first %}<div class="nr-structure-connector"></div>{% endif %}
+            <div class="nr-structure-stage state-{{ s.state }}">
+              <div class="icon-wrap">
+                {% if s.stage == 'モーター' %}
+                <svg viewBox="0 0 32 32"><rect x="4" y="10" width="18" height="12" rx="2" fill="none" stroke="#c3ccd8" stroke-width="2"/><rect x="22" y="14" width="6" height="4" fill="#c3ccd8"/><line x1="8" y1="10" x2="8" y2="22" stroke="#c3ccd8" stroke-width="1.4"/><line x1="13" y1="10" x2="13" y2="22" stroke="#c3ccd8" stroke-width="1.4"/></svg>
+                {% elif s.stage == 'ギアボックス' %}
+                <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="6" fill="none" stroke="#c3ccd8" stroke-width="2"/><circle cx="16" cy="16" r="2" fill="#c3ccd8"/><g stroke="#c3ccd8" stroke-width="2.2"><line x1="16" y1="4" x2="16" y2="8"/><line x1="16" y1="24" x2="16" y2="28"/><line x1="4" y1="16" x2="8" y2="16"/><line x1="24" y1="16" x2="28" y2="16"/><line x1="7.5" y1="7.5" x2="10.3" y2="10.3"/><line x1="21.7" y1="21.7" x2="24.5" y2="24.5"/><line x1="24.5" y1="7.5" x2="21.7" y2="10.3"/><line x1="10.3" y1="21.7" x2="7.5" y2="24.5"/></g></svg>
+                {% elif s.stage == 'トルクセンサー' %}
+                <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="9" fill="none" stroke="#c3ccd8" stroke-width="2"/><line x1="16" y1="7" x2="16" y2="10" stroke="#c3ccd8" stroke-width="1.6"/><line x1="16" y1="22" x2="16" y2="25" stroke="#c3ccd8" stroke-width="1.6"/><line x1="7" y1="16" x2="10" y2="16" stroke="#c3ccd8" stroke-width="1.6"/><line x1="22" y1="16" x2="25" y2="16" stroke="#c3ccd8" stroke-width="1.6"/><line x1="16" y1="16" x2="21" y2="12" stroke="#c3ccd8" stroke-width="2"/></svg>
+                {% else %}
+                <svg viewBox="0 0 32 32"><polygon points="16,5 24,10 24,20 16,25 8,20 8,10" fill="none" stroke="#c3ccd8" stroke-width="2" stroke-linejoin="round"/><circle cx="16" cy="15" r="4" fill="none" stroke="#c3ccd8" stroke-width="1.6"/></svg>
+                {% endif %}
+                <span class="state-dot"></span>
+              </div>
+              <span>{{ s.stage }}</span>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="nr-structure-legend">
+            <span><i class="normal"></i>正常</span>
+            <span><i class="warning"></i>注意</span>
+            <span><i class="critical"></i>異常</span>
+            <span><i class="nodata"></i>データなし</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="nr-panel">
+      <div class="nr-panel-head">主要センサーデータと異常スコアの推移<select class="nr-period-select"><option>24時間</option></select></div>
+      <div class="nr-sensor-legend">
+        <span><i style="background:#e6534a"></i>異常スコア</span>
+        <span><i style="background:#4c8dff"></i>締め付けトルク</span>
+        <span><i style="background:#f0a63e"></i>回転数</span>
+        <span><i style="background:#2fbf82"></i>モーター電流</span>
+        <span><i style="background:#9b6fe0"></i>温度</span>
+      </div>
+      <div class="nr-panel-body" style="padding-top:6px"><div id="nrSensorChart"></div></div>
+    </div>
+
+    <div class="nr-row-2col">
+      <div class="nr-panel">
+        <div class="nr-panel-head">再構成誤差（Autoencoderの出力）</div>
+        <div class="nr-panel-body"><div id="nrReconChart"></div></div>
+      </div>
+      <div class="nr-panel">
+        <div class="nr-panel-head">異常スコアの分布（過去7日間）</div>
+        <div class="nr-panel-body"><div id="nrDistChart"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="nr-panel nr-ai-panel">
+    <div class="nr-panel-head">AIアシスタント（生成AI）<button class="nr-ai-reset" id="nrChatReset">リセット</button></div>
+    <div class="nr-chat-body" id="nrChatBody">
+      {% for m in nr.chat %}
+      {% if m.kind == 'text' %}
+      <div class="nr-chat-msg {{ m.sender }}">
+        <div class="nr-chat-avatar">{{ '操' if m.sender == 'user' else 'AI' }}</div>
+        <div class="nr-chat-content">
+          <div class="nr-chat-meta">{{ 'あなた' if m.sender == 'user' else 'AIアシスタント' }} {{ m.time }}</div>
+          <div class="nr-chat-bubble">{{ m.text }}</div>
+        </div>
+      </div>
+      {% else %}
+      <div class="nr-chat-msg ai">
+        <div class="nr-chat-avatar">AI</div>
+        <div class="nr-chat-content">
+          <div class="nr-chat-chart"><div class="nr-chat-chart-title">{{ m.text }}</div><div id="nrChatMiniChart"></div></div>
+        </div>
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+    <div class="nr-chat-input-row"><input type="text" id="nrChatInput" placeholder="質問を入力してください。"><button id="nrChatSend">送信</button></div>
+    <div class="nr-chat-disclaimer">＊生成AIの回答は参考情報であり、正確性を保証するものではありません。</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var nr = {{ nr|tojson }};
+
+  FDCharts.lineChart(document.getElementById('nrScoreMini'), {
+    height: 130, labels: nr.score_mini.labels,
+    series: { score: nr.score_mini.values }, colors: { score: '#e6534a' },
+    yMin: 0, yMax: 100, xLabelCount: 3, legend: false
+  });
+
+  FDCharts.lineChart(document.getElementById('nrSensorChart'), {
+    height: 260, labels: nr.sensors.labels,
+    series: {
+      anomaly_score: nr.sensors.anomaly_score, torque: nr.sensors.torque, rotation: nr.sensors.rotation,
+      motor_current: nr.sensors.motor_current, temperature: nr.sensors.temperature
+    },
+    colors: { anomaly_score: '#e6534a', torque: '#4c8dff', rotation: '#f0a63e', motor_current: '#2fbf82', temperature: '#9b6fe0' },
+    rightAxis: { series: ['temperature'], min: 0, max: 150 },
+    verticalMarker: { index: nr.alert_marker.index, label: nr.alert_marker.label },
+    yMin: 0, yMax: 100, xLabelCount: 6, strokeWidth: 1.6, legend: false
+  });
+
+  FDCharts.lineChart(document.getElementById('nrReconChart'), {
+    height: 220, labels: nr.reconstruction.labels,
+    series: { recon: nr.reconstruction.values }, colors: { recon: '#4c8dff' },
+    threshold: { value: nr.reconstruction.threshold, color: '#e6534a', label: '閾値 ' + nr.reconstruction.threshold },
+    yMin: 0, yMax: 1.0, xLabelCount: 6, legend: false
+  });
+
+  FDCharts.histogram(document.getElementById('nrDistChart'), {
+    height: 220, buckets: nr.distribution.buckets, frequency: nr.distribution.frequency,
+    barColor: '#4c8dff', xLabelCount: 6, xAxisLabel: '（異常スコア）',
+    marker: { value: nr.distribution.marker.value, label: nr.distribution.marker.label, color: '#e6534a' }
+  });
+
+  FDCharts.lineChart(document.getElementById('nrChatMiniChart'), {
+    height: 110, width: 340, labels: nr.score_7day.labels,
+    series: { score: nr.score_7day.values }, colors: { score: '#e6534a' },
+    yMin: 0, yMax: 100, xLabelCount: 7, legend: false
+  });
+
+  // Live AI chat: DeepSeek reads this equipment's CSVs (via
+  // /api/v1/nutrunner/ask) and answers grounded in the real data above.
+  // The transcript rendered server-side stays as history; only new
+  // messages typed here are sent to the model.
+  var chatBody = document.getElementById('nrChatBody');
+  var input = document.getElementById('nrChatInput');
+  var sendBtn = document.getElementById('nrChatSend');
+  var resetBtn = document.getElementById('nrChatReset');
+  if (chatBody && input && sendBtn) {
+    var addMessage = function(sender, label, time, msgText, isDynamic){
+      var wrap = document.createElement('div');
+      wrap.className = 'nr-chat-msg ' + sender + (isDynamic ? ' dynamic-msg' : '');
+      var avatar = document.createElement('div');
+      avatar.className = 'nr-chat-avatar';
+      avatar.textContent = sender === 'user' ? '操' : 'AI';
+      var content = document.createElement('div');
+      content.className = 'nr-chat-content';
+      var meta = document.createElement('div');
+      meta.className = 'nr-chat-meta';
+      meta.textContent = label + (time ? ' ' + time : '');
+      var bubble = document.createElement('div');
+      bubble.className = 'nr-chat-bubble';
+      bubble.textContent = msgText;
+      content.appendChild(meta);
+      content.appendChild(bubble);
+      wrap.appendChild(avatar);
+      wrap.appendChild(content);
+      chatBody.appendChild(wrap);
+      chatBody.scrollTop = chatBody.scrollHeight;
+      return bubble;
+    };
+    var nowTime = function(){
+      var d = new Date(), p = function(n){ return String(n).padStart(2, '0'); };
+      return p(d.getHours()) + ':' + p(d.getMinutes());
+    };
+    var send = function(){
+      var q = input.value.trim();
+      if (!q || sendBtn.disabled) return;
+      input.value = '';
+      sendBtn.disabled = true;
+      addMessage('user', 'あなた', nowTime(), q, true);
+      var thinking = addMessage('ai', 'AIアシスタント', nowTime(), '考え中…', true);
+      fetch('/api/v1/nutrunner/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: q })
+      }).then(function(r){ return r.json(); }).then(function(data){
+        thinking.textContent = data.ok ? data.answer : ('⚠ ' + data.error);
+      }).catch(function(){
+        thinking.textContent = '⚠ 通信エラーが発生しました。しばらくしてから再度お試しください。';
+      }).finally(function(){
+        sendBtn.disabled = false;
+        chatBody.scrollTop = chatBody.scrollHeight;
+      });
+    };
+    sendBtn.addEventListener('click', send);
+    input.addEventListener('keydown', function(e){ if (e.key === 'Enter') send(); });
+    if (resetBtn) {
+      resetBtn.addEventListener('click', function(){
+        chatBody.querySelectorAll('.dynamic-msg').forEach(function(el){ el.remove(); });
+      });
+    }
+  }
+})();
+</script>
+{% endblock %}

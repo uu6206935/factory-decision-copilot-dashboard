@@ -1,0 +1,4 @@
+﻿rank,process,count,day_delta,flag
+1,XX塗布工程,23,+4,critical
+2,●●巻付け工程,21,+1,critical
+3,XX組立工程,14,-2,none

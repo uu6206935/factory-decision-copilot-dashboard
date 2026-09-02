@@ -1,0 +1,4 @@
+﻿rank,process,count,day_delta,flag
+1,XX巻付け工程,23,+1,critical
+2,▲▲巻付け工程,18,+3,warn
+3,■■巻付け工程,10,-2,none

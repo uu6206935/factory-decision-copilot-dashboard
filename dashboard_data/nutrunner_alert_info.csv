@@ -1,0 +1,7 @@
+﻿key,value
+latest_alert_level,高異常
+latest_alert_time,2025/05/19 09:55
+alert_verdict,異常（AI）
+detection_streak,3日
+model_name,Autoencoder v2.1
+training_period,2025/01/01〜2025/04/30

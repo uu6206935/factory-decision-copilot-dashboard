@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}オートエンコーダー設定 · {{ app_name }}{% endblock %}
+{% block page_title %}オートエンコーダー設定{% endblock %}
+{% block content %}
+{% macro field(f) %}
+  {% if f.kind == 'toggle' %}
+  <div class="ae-field"><label>{{ f.label }}</label>
+    <div class="ae-toggle-row"><div class="ae-toggle {{ '' if f.value == 'ON' else 'off' }}"><i></i></div><span>{{ f.value }}</span></div>
+  </div>
+  {% elif f.kind == 'select' %}
+  <div class="ae-field"><label>{{ f.label }}</label>
+    <select>{% for o in f.options %}<option {% if o == f.value %}selected{% endif %}>{{ o }}</option>{% endfor %}</select>
+  </div>
+  {% else %}
+  <div class="ae-field"><label>{{ f.label }}</label><input type="text" value="{{ f.value }}"></div>
+  {% endif %}
+{% endmacro %}
+
+<div class="ae-page">
+  <div class="ae-crumb">
+    <span>{{ ae.meta.breadcrumb }}</span>
+    <div class="right">
+      <span>{{ ae.meta.report_datetime }}</span>
+      <span>⟳ 自動更新 {{ ae.meta.auto_refresh }}</span>
+      <span class="bell">🔔<b>{{ ae.meta.alert_badge }}</b></span>
+    </div>
+  </div>
+
+  <div class="ae-body">
+    <div class="ae-main">
+      <div class="ae-title-row">
+        <span class="ae-title-dot"></span>
+        <div><h1>{{ ae.meta.title }}</h1><div class="sub">{{ ae.meta.subtitle }}</div></div>
+        <button class="ae-save-btn">設定を保存</button>
+      </div>
+
+      <div class="ae-tabs">
+        {% for t in ae.tabs %}<span class="{{ 'active' if t.active else '' }}">{{ t.label }}</span>{% endfor %}
+      </div>
+
+      <div class="ae-grid">
+        <div class="ae-panel">
+          <div class="ae-panel-head"><h2>モデル構成</h2><span class="help">?</span></div>
+          <div class="ae-nn">
+            <svg viewBox="0 0 300 150" preserveAspectRatio="xMidYMid meet">
+              {% for e in ae.network.edges %}<line x1="{{ e.x1 }}" y1="{{ e.y1 }}" x2="{{ e.x2 }}" y2="{{ e.y2 }}" stroke="#2b313a" stroke-width="0.5"/>{% endfor %}
+              {% for lay in ae.network.layers %}
+                {% if lay.label %}<text x="{{ lay.x }}" y="10" text-anchor="middle" font-size="8" fill="#8b95a3" font-family="Inter,'Noto Sans JP',sans-serif">{{ lay.label }}</text>{% endif %}
+                {% for p in lay.points %}<circle cx="{{ p.cx }}" cy="{{ p.cy }}" r="{{ lay.r }}" fill="{% if lay.role == 'encoder' %}#2fbf82{% elif lay.role == 'decoder' %}#4d9bff{% else %}#8b95a3{% endif %}"/>{% endfor %}
+              {% endfor %}
+            </svg>
+            <div class="ae-nn-caption">潜在層<br>（ボトルネック）</div>
+          </div>
+          {% for f in ae.model_fields %}{{ field(f) }}{% endfor %}
+        </div>
+
+        <div class="ae-panel">
+          <div class="ae-panel-head"><h2>学習設定</h2><span class="help">?</span></div>
+          {% for f in ae.training_fields %}{{ field(f) }}{% endfor %}
+        </div>
+
+        <div>
+          <div class="ae-panel">
+            <div class="ae-panel-head"><h2>異常スコア設定</h2><span class="help">?</span></div>
+            {% for f in ae.score_fields %}{{ field(f) }}{% endfor %}
+            <div class="ae-info-box"><i>ⓘ</i><span>しきい値は「しきい値設定」<br>タブで設定します</span></div>
+          </div>
+          <div class="ae-panel ae-summary-panel">
+            <div class="ae-panel-head"><h2>現在の設定の概要</h2></div>
+            <ul>{% for s in ae.summary %}<li><b>{{ s.label }}:</b> {{ s.value }}</li>{% endfor %}</ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="ae-footer">
+        <button class="ae-btn-cancel">キャンセル</button>
+        <button class="ae-btn-run">保存して学習を実行</button>
+      </div>
+    </div>
+
+    <div class="ae-ai-panel">
+      <div class="ae-ai-head">AIアシスタント</div>
+      <div class="ae-chat-body" id="aeChatBody">
+        {% for m in ae.chat %}
+        <div class="ae-msg {{ m.sender }}">
+          <div class="avatar">{{ 'AI' if m.sender == 'ai' else '操' }}</div>
+          <div class="content">
+            <div class="meta"><b>{{ 'AIアシスタント' if m.sender == 'ai' else 'あなた' }}</b>{{ m.time }}</div>
+            <div class="bubble">{{ m.text }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="ae-chat-input"><input type="text" id="aeChatInput" placeholder="質問を入力してください..."></div>
+      <div class="ae-chat-note">※個人AIの回答は参考情報です。最終判断は自己責任でお願いします。</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var chatBody = document.getElementById('aeChatBody');
+  var input = document.getElementById('aeChatInput');
+  if (!chatBody || !input) return;
+
+  var addMessage = function(sender, text){
+    var wrap = document.createElement('div');
+    wrap.className = 'ae-msg ' + sender + ' dynamic-msg';
+    var d = new Date(), p = function(n){ return String(n).padStart(2, '0'); };
+    wrap.innerHTML = '<div class="avatar">' + (sender === 'ai' ? 'AI' : '操') + '</div>' +
+      '<div class="content"><div class="meta"><b>' + (sender === 'ai' ? 'AIアシスタント' : 'あなた') + '</b>' +
+      p(d.getHours()) + ':' + p(d.getMinutes()) + '</div><div class="bubble"></div></div>';
+    wrap.querySelector('.bubble').textContent = text;
+    chatBody.appendChild(wrap);
+    chatBody.scrollTop = chatBody.scrollHeight;
+    return wrap.querySelector('.bubble');
+  };
+
+  var busy = false;
+  var send = function(){
+    var q = input.value.trim();
+    if (!q || busy) return;
+    input.value = '';
+    busy = true;
+    addMessage('user', q);
+    var thinking = addMessage('ai', '考え中…');
+    fetch('/api/v1/autoencoder/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: q })
+    }).then(function(r){ return r.json(); }).then(function(data){
+      thinking.textContent = data.ok ? data.answer : ('⚠ ' + data.error);
+    }).catch(function(){
+      thinking.textContent = '⚠ 通信エラーが発生しました。しばらくしてから再度お試しください。';
+    }).finally(function(){
+      busy = false;
+      chatBody.scrollTop = chatBody.scrollHeight;
+    });
+  };
+  input.addEventListener('keydown', function(e){ if (e.key === 'Enter') send(); });
+})();
+</script>
+{% endblock %}

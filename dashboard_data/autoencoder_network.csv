@@ -1,0 +1,6 @@
+﻿layer,label,nodes,role
+1,入力層,6,plain
+2,エンコーダ,5,encoder
+3,,3,bottleneck
+4,デコーダ,5,decoder
+5,出力層,6,plain

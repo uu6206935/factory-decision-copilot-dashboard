@@ -1,0 +1,20 @@
+﻿section,label,value,kind,options
+model,入力次元数,24,text,
+model,潜在層の次元数（ボトルネック）,8,text,
+model,エンコーダ層構成,"64, 32",text,
+model,デコーダ層構成,"32, 64",text,
+model,活性化関数,ReLU,select,ReLU|LeakyReLU|Tanh|Sigmoid|ELU
+model,出力層の活性化関数,Linear,select,Linear|Sigmoid|Tanh
+model,正規化,Batch Normalization,select,Batch Normalization|Layer Normalization|なし
+model,正則化設定（ドロップアウトなど）,,select,|Dropout 0.1|Dropout 0.2|L2 正則化
+training,学習アルゴリズム,Adam,select,Adam|SGD|RMSprop|AdamW
+training,学習率 (Learning Rate),0.001,text,
+training,バッチサイズ,64,text,
+training,エポック数,100,text,
+training,損失関数,MSE（平均二乗誤差）,select,MSE（平均二乗誤差）|MAE（平均絶対誤差）|Huber
+training,早期終了 (Early Stopping),ON,toggle,
+training,パティエンス,10,text,
+training,検証データの分割比率,0.2,text,
+training,ランダムシード,42,text,
+score,スコア計算方法,再構成誤差（MSE）,select,再構成誤差（MSE）|再構成誤差（MAE）|マハラノビス距離
+score,スコアの統計方法,平均,select,平均|最大|中央値|パーセンタイル

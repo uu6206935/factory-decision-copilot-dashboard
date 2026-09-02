@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}品質状況 · {{ app_name }}{% endblock %}
+{% block page_title %}品質状況{% endblock %}
+{% block content %}
+<div class="ccr-page">
+  <div class="ccr-head">
+    <h1>{{ quality.meta.factory_name }}　CCRダッシュボード（品質状況）</h1>
+    <span class="ccr-line-badge">{{ quality.meta.line_name }}</span>
+    <span class="ccr-date">{{ quality.meta.report_date }}　{{ quality.meta.shift }}</span>
+    <div class="ccr-head-right"><span class="ccr-status-dot"></span>設定変更：{{ quality.meta.setting_change }}</div>
+  </div>
+
+  <div class="ccr-kpi-row">
+    {% for k in quality.kpis %}
+    <div class="ccr-kpi-card {% if k.tier=='critical' %}filled-red{% endif %}">
+      <div class="ccr-kpi-label">{{ k.label }}</div>
+      <div class="ccr-kpi-value {% if k.tier=='good' %}good{% endif %}">{{ k.value }}<small style="font-size:20px">{{ k.unit }}</small></div>
+      <div class="ccr-kpi-deltas">
+        <div><span>前日比</span><b class="{{ 'up-' if k.day_delta.arrow=='↑' else 'down-' }}{{ k.day_delta.cls }}">{{ k.day_delta.text }}{{ k.unit if k.unit=='件' else '%' }} {{ k.day_delta.arrow }}</b></div>
+        <div><span>前週比</span><b class="{{ 'up-' if k.week_delta.arrow=='↑' else 'down-' }}{{ k.week_delta.cls }}">{{ k.week_delta.text }}{{ k.unit if k.unit=='件' else '%' }} {{ k.week_delta.arrow }}</b></div>
+      </div>
+    </div>
+    {% endfor %}
+    <div class="ccr-kpi-card filled-yellow">
+      <div class="ccr-kpi-label">{{ quality.rework_rate.label }}</div>
+      <div class="ccr-kpi-value">{{ quality.rework_rate.value }}<small style="font-size:20px">%</small></div>
+      <div class="ccr-kpi-extra">
+        <div><span>手直し総数</span><b>{{ quality.rework_rate.rework_total }}件</b></div>
+        <div><span>生産台数</span><b>{{ quality.rework_rate.production_total }}台</b></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ccr-mid-row">
+    <div class="ccr-panel">
+      <div class="ccr-panel-title">手直し発生工程ワースト3　（件数）</div>
+      <table class="ccr-rank-table">
+        <thead><tr><th>順位</th><th>工程</th><th>件数</th><th>前日比</th><th>変化点</th></tr></thead>
+        <tbody>
+          {% for r in quality.worst_rework %}
+          <tr class="{% if r.flag=='critical' %}flag-critical{% elif r.flag=='warn' %}flag-warn{% endif %}">
+            <td><span class="rank-num">{{ r.rank }}</span></td>
+            <td class="proc">{{ r.process }}</td>
+            <td>{{ r.count }}件</td>
+            <td class="{{ 'delta-bad' if r.day_delta.cls=='bad' else 'delta-good' }}">{{ r.day_delta.text }}</td>
+            <td>{% if r.flag!='none' %}<span class="flag-icon">⚠️</span>{% else %}—{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="ccr-panel">
+      <div class="ccr-panel-title">呼出回数工程ワースト3　（件数）</div>
+      <table class="ccr-rank-table">
+        <thead><tr><th>順位</th><th>工程</th><th>件数</th><th>前日比</th><th>変化点</th></tr></thead>
+        <tbody>
+          {% for r in quality.worst_calls %}
+          <tr class="{% if r.flag=='critical' %}flag-critical{% elif r.flag=='warn' %}flag-warn{% endif %}">
+            <td><span class="rank-num">{{ r.rank }}</span></td>
+            <td class="proc">{{ r.process }}</td>
+            <td>{{ r.count }}件</td>
+            <td class="{{ 'delta-bad' if r.day_delta.cls=='bad' else 'delta-good' }}">{{ r.day_delta.text }}</td>
+            <td>{% if r.flag!='none' %}<span class="flag-icon">⚠️</span>{% else %}—{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="ccr-panel ccr-empty-panel">
+      <div class="ccr-panel-title">膜厚関係表示</div>
+    </div>
+  </div>
+
+  <div class="ccr-lower-row">
+    <div class="ccr-panel">
+      <div class="ccr-panel-title">手直し発生工程ワースト3　推移　（件数）</div>
+      <div class="ccr-trend-body"><div id="ccrTrendChart"></div></div>
+    </div>
+    <div class="ccr-panel ccr-empty-panel">
+      <div class="ccr-panel-title">膜厚関係グラフ</div>
+    </div>
+  </div>
+
+  <div class="ccr-ai-panel">
+    <div class="ccr-ai-badge">
+      <div class="ccr-ai-ring"><span>AI</span></div>
+      <b>AI 提案</b>
+      <small>（改善提案と次の一手を提示）</small>
+    </div>
+    <div class="ccr-ai-list">
+      {% for s in quality.suggestions %}
+      <div><i class="{{ s.color }}"></i><span>{{ s.text }}</span></div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var quality = {{ quality|tojson }};
+  FDCharts.lineChart(document.getElementById('ccrTrendChart'), {
+    height: 240,
+    labels: quality.trend.labels,
+    series: { red: quality.trend.red, yellow: quality.trend.yellow, blue: quality.trend.blue },
+    colors: { red: '#e63c33', yellow: '#e8b923', blue: '#3b9fe0' },
+    seriesMarkerRadius: { red: 3.5, yellow: 3.5, blue: 3.5 },
+    pointLabels: ['red', 'yellow', 'blue'],
+    pointLabelPos: { red: 'above', yellow: 'below', blue: 'below' },
+    yMin: 0, yMax: 30,
+    legend: false
+  });
+})();
+</script>
+{% endblock %}

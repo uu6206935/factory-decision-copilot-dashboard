@@ -1,0 +1,5 @@
+﻿key,label,value,unit,day_delta,week_delta,tier
+w_yield,W 直行率,98.1,%,+0.2,+0.3,good
+t_yield,T 直行率,99.8,%,+0.1,+0.2,good
+k_yield,K 直行率,94.3,%,-0.6,-1.2,critical
+downstream_leak,後工程流出数,5,件,-2,-3,neutral

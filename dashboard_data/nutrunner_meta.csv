@@ -1,0 +1,9 @@
+﻿key,value
+equipment_name,ナットランナー PU-01
+tag,重要設備
+area_line,エリア / 製造ライン1
+report_datetime,2025/05/19 10:30:00
+auto_refresh,ON
+alert_badge,1
+alert_count,3
+user_role,管理者

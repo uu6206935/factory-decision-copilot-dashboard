@@ -6,12 +6,13 @@
   <meta name="theme-color" content="#0a0d13">
   <title>{% block title %}{{ app_name }}{% endblock %}</title>
   <link rel="stylesheet" href="/static/product-warm-teal-174.css?v=178">
-  <link rel="stylesheet" href="/static/dashboard-dark.css?v=8">
-  <script src="/static/charts.js?v=3"></script>
+  <link rel="stylesheet" href="/static/dashboard-dark.css?v=14">
+  <script src="/static/charts.js?v=5"></script>
 </head>
 <body>
 {% set mods = capabilities.modules if capabilities else {} %}
 {% set intel_on = (mods.sensor_monitoring.enabled if mods.sensor_monitoring is defined else false) or (mods.process_intelligence.enabled if mods.process_intelligence is defined else false) or (mods.acoustic_monitoring.enabled if mods.acoustic_monitoring is defined else false) %}
+<div id="scaleOuter"><div id="scaleInner">
 <div class="app-shell">
   <aside class="sidebar" id="sidebar">
     <div class="brand-block">
@@ -31,6 +32,26 @@
         <a class="nav-sub-item placeholder" href="/coming-soon?label={{ '月別設備毎分析画面'|urlencode }}"><span class="tick">▶</span>月別設備毎分析画面<span class="soon-badge">準備中</span></a>
         <a class="nav-sub-item placeholder" href="/coming-soon?label={{ 'メンテ履歴一覧'|urlencode }}"><span class="tick">▶</span>メンテ履歴一覧<span class="soon-badge">準備中</span></a>
         <a class="nav-sub-item placeholder" href="/coming-soon?label={{ '加工条件分析'|urlencode }}"><span class="tick">▶</span>加工条件分析<span class="soon-badge">準備中</span></a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-title"><span class="nav-icon">⚙</span>設定</div>
+        <a class="nav-sub-item {% if active_page=='autoencoder_settings' %}active{% endif %}" href="/settings/autoencoder"><span class="tick">▶</span>オートエンコーダー設定</a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-title"><span class="nav-icon">✦</span>異常兆候</div>
+        <a class="nav-sub-item {% if active_page=='anomaly_detection' %}active{% endif %}" href="/anomaly/detection"><span class="tick">▶</span>異常兆候検知</a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-title"><span class="nav-icon">◎</span>設備監視</div>
+        <a class="nav-sub-item {% if active_page=='nutrunner_detail' %}active{% endif %}" href="/monitoring/nut-runner-pu01"><span class="tick">▶</span>ナットランナーPU-01</a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-title"><span class="nav-icon">◈</span>品質</div>
+        <a class="nav-sub-item {% if active_page=='quality_status' %}active{% endif %}" href="/quality/status"><span class="tick">▶</span>品質状況</a>
       </div>
 
       <div class="nav-group">
@@ -106,6 +127,7 @@
     </main>
   </div>
 </div>
+</div></div>
 <script src="/static/product.js?v={{ version }}"></script>
 <script>
 (function(){
@@ -118,6 +140,37 @@
   }
   tick();
   setInterval(tick, 1000);
+})();
+</script>
+<script>
+(function(){
+  // App-wide scale-to-fit: the whole app is authored at a fixed 1920px
+  // reference width (#scaleInner) and uniformly scaled to whatever the
+  // real window width is, instead of reflowing. This keeps every screen
+  // pixel-identical in composition on narrow/ultra-wide windows and at
+  // any browser zoom level -- it just renders smaller or larger.
+  var inner = document.getElementById('scaleInner');
+  var outer = document.getElementById('scaleOuter');
+  if (!inner || !outer) return;
+  var REF_W = 1920;
+  // Right-edge breathing room. clientWidth (not innerWidth) already excludes
+  // the vertical scrollbar -- using innerWidth was hiding the last ~15px of
+  // the canvas underneath it -- and RIGHT_GAP leaves a small visible margin
+  // on top of that so nothing ever sits flush against the window edge.
+  var RIGHT_GAP = 14;
+  function fit(){
+    var avail = (document.documentElement.clientWidth || window.innerWidth) - RIGHT_GAP;
+    var scale = avail / REF_W;
+    inner.style.transform = 'scale(' + scale + ')';
+    var naturalH = inner.offsetHeight; // layout height; transform doesn't affect it
+    outer.style.height = Math.ceil(naturalH * scale) + 'px';
+  }
+  fit();
+  window.addEventListener('resize', fit);
+  window.addEventListener('load', fit);
+  // Re-measure shortly after first paint too: charts/fonts can still be
+  // settling their final size right after fit() first runs.
+  setTimeout(fit, 300);
 })();
 </script>
 </body>

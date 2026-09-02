@@ -1,0 +1,15 @@
+﻿area,area_label,eq_id,icon,state
+A,エリアA：組立ライン,A-01,robot,warning
+A,エリアA：組立ライン,A-02,robot,critical
+A,エリアA：組立ライン,A-03,machine,normal
+A,エリアA：組立ライン,A-04,scanner,offline
+B,エリアB：加工ライン,B-01,gear,critical
+B,エリアB：加工ライン,B-02,conveyor,normal
+B,エリアB：加工ライン,B-03,gear,critical
+B,エリアB：加工ライン,B-04,robot,warning
+B,エリアB：加工ライン,B-05,conveyor,normal
+C,エリアC：検査・梱包ライン,C-01,gear,normal
+C,エリアC：検査・梱包ライン,C-02,robot,warning
+C,エリアC：検査・梱包ライン,C-03,box,normal
+C,エリアC：検査・梱包ライン,C-04,box,normal
+C,エリアC：検査・梱包ライン,C-05,scanner,normal

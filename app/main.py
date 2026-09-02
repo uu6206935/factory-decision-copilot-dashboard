@@ -20,7 +20,7 @@ from .platform import catalog_payload, get_state, rebuild
 from .security import UserContext, current_user, require_role
 from .schema import ALIASES, DISPLAY_LABELS, ROLE_REQUIRED, save_join_review, save_schema_review
 from .service import run_analysis
-from .dashboard_data import production_dashboard_data, equipment_monitor_data, bolt_torque_data, line_list_data, machine_learning_data
+from .dashboard_data import production_dashboard_data, equipment_monitor_data, bolt_torque_data, line_list_data, machine_learning_data, quality_ccr_data, nutrunner_detail_data, nutrunner_ai_ask, anomaly_dashboard_data, anomaly_dashboard_ai_ask, autoencoder_config_data, autoencoder_ai_ask
 from .ai_modules import intelligence_snapshot, module_status
 from .process_intelligence import process_snapshot
 from .sensor_ai import equipment_health
@@ -87,7 +87,7 @@ async def disable_ui_cache(request: Request, call_next):
         # This is what makes page-to-page navigation feel instant: without it the
         # browser re-downloads the full CSS/JS bundle on every single screen.
         response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
-    elif path in {"/", "/investigate", "/onboarding", "/equipment", "/equipment/bolt-torque", "/equipment/lines", "/equipment/machine-learning", "/intelligence", "/data-map"}:
+    elif path in {"/", "/investigate", "/onboarding", "/equipment", "/equipment/bolt-torque", "/equipment/lines", "/equipment/machine-learning", "/quality/status", "/monitoring/nut-runner-pu01", "/anomaly/detection", "/settings/autoencoder", "/intelligence", "/data-map"}:
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
@@ -191,6 +191,72 @@ def equipment_machine_learning_page(request: Request):
         name="machine_learning.html",
         context=ctx("machine_learning", ml=machine_learning_data()),
     )
+
+
+@app.get("/quality/status", response_class=HTMLResponse)
+def quality_status_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="quality_status.html",
+        context=ctx("quality_status", quality=quality_ccr_data()),
+    )
+
+
+@app.get("/monitoring/nut-runner-pu01", response_class=HTMLResponse)
+def nutrunner_detail_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="nutrunner_detail.html",
+        context=ctx("nutrunner_detail", nr=nutrunner_detail_data()),
+    )
+
+
+@app.post("/api/v1/nutrunner/ask")
+async def api_nutrunner_ask(request: Request, user: UserContext = Depends(current_user)):
+    body = await request.json()
+    question = str(body.get("question") or "").strip()
+    if not question:
+        return JSONResponse({"ok": False, "error": "質問を入力してください。"}, status_code=400)
+    log_audit(user.subject, "nutrunner.chat.ask", {"question": question[:200]})
+    return JSONResponse(nutrunner_ai_ask(question))
+
+
+@app.get("/anomaly/detection", response_class=HTMLResponse)
+def anomaly_detection_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="anomaly_dashboard.html",
+        context=ctx("anomaly_detection", ad=anomaly_dashboard_data()),
+    )
+
+
+@app.post("/api/v1/anomaly-dashboard/ask")
+async def api_anomaly_dashboard_ask(request: Request, user: UserContext = Depends(current_user)):
+    body = await request.json()
+    question = str(body.get("question") or "").strip()
+    if not question:
+        return JSONResponse({"ok": False, "error": "質問を入力してください。"}, status_code=400)
+    log_audit(user.subject, "anomaly_dashboard.chat.ask", {"question": question[:200]})
+    return JSONResponse(anomaly_dashboard_ai_ask(question))
+
+
+@app.get("/settings/autoencoder", response_class=HTMLResponse)
+def autoencoder_settings_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="autoencoder_settings.html",
+        context=ctx("autoencoder_settings", ae=autoencoder_config_data()),
+    )
+
+
+@app.post("/api/v1/autoencoder/ask")
+async def api_autoencoder_ask(request: Request, user: UserContext = Depends(current_user)):
+    body = await request.json()
+    question = str(body.get("question") or "").strip()
+    if not question:
+        return JSONResponse({"ok": False, "error": "質問を入力してください。"}, status_code=400)
+    log_audit(user.subject, "autoencoder.chat.ask", {"question": question[:200]})
+    return JSONResponse(autoencoder_ai_ask(question))
 
 
 @app.get("/coming-soon", response_class=HTMLResponse)

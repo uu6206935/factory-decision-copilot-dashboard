@@ -40,22 +40,27 @@
   // ------------------------------------------------------------------
   function lineChart(container, opts) {
     const W = opts.width || 720, H = opts.height || 260;
-    const padL = 40, padR = 14, padT = 14, padB = 26;
+    const rightSeries = (opts.rightAxis && opts.rightAxis.series) || [];
+    const padL = 40, padR = rightSeries.length ? 42 : 14, padT = 14, padB = 26;
     const plotW = W - padL - padR, plotH = H - padT - padB;
     const labels = opts.labels || [];
     const seriesNames = Object.keys(opts.series || {});
+    const leftNames = seriesNames.filter((n) => !rightSeries.includes(n));
     let yMin = opts.yMin, yMax = opts.yMax;
     if (yMin === undefined || yMax === undefined) {
       let lo = Infinity, hi = -Infinity;
-      seriesNames.forEach((k) => (opts.series[k] || []).forEach((v) => { lo = Math.min(lo, v); hi = Math.max(hi, v); }));
+      leftNames.forEach((k) => (opts.series[k] || []).forEach((v) => { lo = Math.min(lo, v); hi = Math.max(hi, v); }));
       if (!isFinite(lo)) { lo = 0; hi = 1; }
       const pad = (hi - lo) * 0.12 || 1;
       yMin = opts.yMin !== undefined ? opts.yMin : Math.max(0, lo - pad);
       yMax = opts.yMax !== undefined ? opts.yMax : hi + pad;
     }
+    const rMin = (opts.rightAxis && opts.rightAxis.min) || 0;
+    const rMax = (opts.rightAxis && opts.rightAxis.max) || 100;
     const n = labels.length || 1;
     const x = (i) => padL + (plotW * i) / Math.max(1, n - 1);
     const y = (v) => padT + plotH * (1 - (v - yMin) / (yMax - yMin || 1));
+    const yR = (v) => padT + plotH * (1 - (v - rMin) / (rMax - rMin || 1));
 
     const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", height: H, preserveAspectRatio: "xMidYMid meet" });
     const grid = el("g");
@@ -65,6 +70,10 @@
       const gy = y(v);
       grid.appendChild(el("line", { x1: padL, x2: W - padR, y1: gy, y2: gy, stroke: "var(--chart-grid)", "stroke-width": 1 }));
       grid.appendChild(text(padL - 8, gy + 3, Math.round(v), { "text-anchor": "end", "font-size": 10, fill: "var(--chart-axis-text)" }));
+      if (rightSeries.length) {
+        const rv = rMin + ((rMax - rMin) * t) / ticks;
+        grid.appendChild(text(W - padR + 8, yR(rv) + 3, Math.round(rv), { "font-size": 10, fill: "var(--chart-axis-text)" }));
+      }
     }
     svg.appendChild(grid);
 
@@ -74,13 +83,42 @@
       svg.appendChild(text(x(i), H - 6, lab, { "text-anchor": "middle", "font-size": 10, fill: "var(--chart-axis-text)" }));
     });
 
+    if (opts.threshold) {
+      const th = opts.threshold;
+      const ty = rightSeries.includes(th.axis) ? yR(th.value) : y(th.value);
+      svg.appendChild(el("line", { x1: padL, x2: W - padR, y1: ty, y2: ty, stroke: th.color || "#e6534a", "stroke-width": 1.6, "stroke-dasharray": "6 4" }));
+      svg.appendChild(text(W - padR - 4, ty - 5, th.label || "", { "text-anchor": "end", "font-size": 10, "font-weight": 700, fill: th.color || "#e6534a" }));
+    }
+    if (opts.verticalMarker) {
+      const vm = opts.verticalMarker;
+      const vx = x(vm.index);
+      svg.appendChild(el("line", { x1: vx, x2: vx, y1: padT, y2: padT + plotH, stroke: vm.color || "#e6534a", "stroke-width": 1.4, "stroke-dasharray": "4 3" }));
+      if (vm.label) {
+        const anchorEnd = vx > padL + plotW * 0.6;
+        const lx = anchorEnd ? vx - 6 : vx + 6;
+        svg.appendChild(el("rect", { x: anchorEnd ? lx - vm.label.length * 5.6 - 6 : lx, y: padT, width: vm.label.length * 5.6 + 10, height: 16, fill: vm.color || "#e6534a" }));
+        svg.appendChild(text(anchorEnd ? lx - 3 : lx + 5, padT + 11.5, vm.label, { "text-anchor": anchorEnd ? "end" : "start", "font-size": 10, "font-weight": 700, fill: "#fff" }));
+      }
+    }
+
     seriesNames.forEach((name) => {
       const vals = opts.series[name];
       const color = (opts.colors || {})[name] || "#6fa0ff";
-      const d = vals.map((v, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
-      svg.appendChild(el("path", { d, fill: "none", stroke: color, "stroke-width": opts.strokeWidth || 2, "stroke-linejoin": "round", "stroke-linecap": "round", opacity: opts.opacity ? opts.opacity[name] || 1 : 1 }));
-      if (opts.markers) {
-        vals.forEach((v, i) => svg.appendChild(el("circle", { cx: x(i), cy: y(v), r: opts.markerRadius || 3.5, fill: color })));
+      const dashed = ((opts.dashedSeries || [])).includes(name);
+      const mr = (opts.seriesMarkerRadius || {})[name] || opts.markerRadius || 3.5;
+      const yf = rightSeries.includes(name) ? yR : y;
+      const d = vals.map((v, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${yf(v).toFixed(1)}`).join(" ");
+      svg.appendChild(el("path", {
+        d, fill: "none", stroke: color, "stroke-width": opts.strokeWidth || 2, "stroke-linejoin": "round", "stroke-linecap": "round",
+        opacity: opts.opacity ? opts.opacity[name] || 1 : 1,
+        ...(dashed ? { "stroke-dasharray": "5 4" } : {}),
+      }));
+      if (opts.markers || dashed) {
+        vals.forEach((v, i) => svg.appendChild(el("circle", { cx: x(i), cy: yf(v), r: mr, fill: dashed ? "#e8e8e8" : color })));
+      }
+      if ((opts.pointLabels || []).includes(name)) {
+        const above = (opts.pointLabelPos || {})[name] !== "below";
+        vals.forEach((v, i) => svg.appendChild(text(x(i), yf(v) + (above ? -10 : 16), v, { "text-anchor": "middle", "font-size": 11, "font-weight": 700, fill: (opts.pointLabelColor || {})[name] || color })));
       }
     });
 
@@ -392,5 +430,52 @@
     }
   }
 
-  global.FDCharts = { lineChart, stackedBarLine, donut, gauge, timeline, pareto, dualAxisAreaChart };
+  // ------------------------------------------------------------------
+  // Frequency histogram (score distribution) with an optional
+  // highlighted vertical marker + label for "the current value"
+  // ------------------------------------------------------------------
+  function histogram(container, opts) {
+    const W = opts.width || 480, H = opts.height || 260;
+    const padL = 34, padR = 14, padT = 30, padB = 30;
+    const plotW = W - padL - padR, plotH = H - padT - padB;
+    const buckets = opts.buckets || [];
+    const freq = opts.frequency || [];
+    const n = buckets.length || 1;
+    const maxF = niceMax(Math.max(...freq, 1));
+    const bw = plotW / n;
+    const x = (i) => padL + bw * i;
+    const yBar = (v) => padT + plotH * (1 - v / maxF);
+
+    const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", height: H, preserveAspectRatio: "xMidYMid meet" });
+    const ticks = 3;
+    for (let t = 0; t <= ticks; t++) {
+      const v = (maxF * t) / ticks;
+      const gy = yBar(v);
+      svg.appendChild(el("line", { x1: padL, x2: W - padR, y1: gy, y2: gy, stroke: "var(--chart-grid)", "stroke-width": 1 }));
+      svg.appendChild(text(padL - 8, gy + 3, Math.round(v), { "text-anchor": "end", "font-size": 10, fill: "var(--chart-axis-text)" }));
+    }
+    const xLabelEvery = Math.max(1, Math.ceil(n / (opts.xLabelCount || 6)));
+    buckets.forEach((b, i) => {
+      if (i % xLabelEvery !== 0 && i !== n - 1) return;
+      svg.appendChild(text(x(i) + bw / 2, H - 10, b, { "text-anchor": "middle", "font-size": 9.5, fill: "var(--chart-axis-text)" }));
+    });
+    freq.forEach((v, i) => {
+      const barH = Math.max(0, (padT + plotH) - yBar(v));
+      svg.appendChild(el("rect", { x: x(i) + 1, y: yBar(v), width: Math.max(1, bw - 2), height: barH, fill: opts.barColor || "#3b7cff" }));
+    });
+    if (opts.marker) {
+      const mIndex = (() => {
+        let best = 0, bestDist = Infinity;
+        buckets.forEach((b, i) => { const d = Math.abs(b - opts.marker.value); if (d < bestDist) { bestDist = d; best = i; } });
+        return best;
+      })();
+      const mx = x(mIndex) + bw / 2;
+      svg.appendChild(el("line", { x1: mx, x2: mx, y1: padT - 2, y2: padT + plotH, stroke: opts.marker.color || "#e6534a", "stroke-width": 1.8 }));
+      svg.appendChild(text(mx, padT - 8, opts.marker.label || "", { "text-anchor": mx > padL + plotW * 0.7 ? "end" : "start", "font-size": 10.5, "font-weight": 700, fill: opts.marker.color || "#e6534a" }));
+    }
+    if (opts.xAxisLabel) svg.appendChild(text(W - padR, H - 1, opts.xAxisLabel, { "text-anchor": "end", "font-size": 9, fill: "var(--chart-axis-text)" }));
+    mount(container, svg);
+  }
+
+  global.FDCharts = { lineChart, stackedBarLine, donut, gauge, timeline, pareto, dualAxisAreaChart, histogram };
 })(window);

@@ -1,0 +1,5 @@
+﻿tier,label,count,link_label
+critical,異常の高確度あり,3,即時要注意
+warning,注意（監視強化）,7,詳細を表示
+normal,正常,18,詳細を表示
+offline,停止中,2,詳細を表示
