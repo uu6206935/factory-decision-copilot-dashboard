@@ -66,6 +66,12 @@ LLM_MODEL = DEEPSEEK_MODEL
 SCHEMA_LLM_ENABLED = DEEPSEEK_SCHEMA_REASONING
 SCHEMA_LLM_SAMPLE_VALUES = DEEPSEEK_SEND_SAMPLE_VALUES
 
+# Link-only access gate for the public demo deployment. When set, every page
+# and API call requires ?k=<key> once (which then sticks as a cookie); anything
+# else gets a 404 so the site looks like it isn't there. Empty locally, so
+# local runs are never gated.
+ACCESS_KEY = os.getenv("ACCESS_KEY", "").strip()
+
 AUTH_MODE = os.getenv("AUTH_MODE", "off").strip().lower()
 API_KEYS_JSON = os.getenv("API_KEYS_JSON", '{"demo-admin-key":"admin","demo-engineer-key":"engineer","demo-viewer-key":"viewer"}')
 OIDC_ISSUER = os.getenv("OIDC_ISSUER", "").rstrip("/")

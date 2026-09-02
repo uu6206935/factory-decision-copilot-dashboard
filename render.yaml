@@ -8,6 +8,10 @@ services:
     envVars:
       - key: DEEPSEEK_API_KEY
         value: sk-854d801704094f2e8d9ba28021fd8ddf
+      # Link-only gate: the site 404s unless the visitor arrives with
+      # ?k=<this value> once (it then sticks as a cookie).
+      - key: ACCESS_KEY
+        value: "12345678"
       - key: AUTH_MODE
         value: off
       - key: DEEPSEEK_SEND_SAMPLE_VALUES

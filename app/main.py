@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
-from .config import APP_NAME, APP_VERSION, AUTH_MODE, DATA_DIR, LLM_MODE, VECTOR_BACKEND, FILE_ALLOWLIST, MAX_FILE_MB, RUNTIME_DIR, DEEPSEEK_MODEL
+from .config import APP_NAME, APP_VERSION, ACCESS_KEY, AUTH_MODE, DATA_DIR, LLM_MODE, VECTOR_BACKEND, FILE_ALLOWLIST, MAX_FILE_MB, RUNTIME_DIR, DEEPSEEK_MODEL
 from .capabilities import preferred_prompt
 from .database import init_db, log_audit, recent_audit, recent_cases, recent_review_items, recent_vision_events
 from .metrics import INGEST_COUNT
@@ -76,6 +76,39 @@ app = FastAPI(
 )
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 app.mount("/runtime-assets", StaticFiles(directory=str(VISION_DIR)), name="runtime-assets")
+
+ACCESS_COOKIE = "fdc_access"
+# Render's health check and crawler directives must stay reachable, otherwise
+# the service is marked unhealthy and never goes live.
+ACCESS_OPEN_PATHS = {"/healthz", "/readyz", "/robots.txt"}
+
+
+@app.middleware("http")
+async def link_only_access_gate(request: Request, call_next):
+    """Link-only deployment: the site is invisible without ?k=<ACCESS_KEY>.
+
+    The key is needed once -- it is then stored as a cookie so every later
+    page load, asset and API call works normally. Anything unauthenticated
+    gets a plain 404 rather than a 401, so the deployment reads as
+    'nothing here' instead of 'something here you can't have'.
+    """
+    if not ACCESS_KEY or request.url.path in ACCESS_OPEN_PATHS:
+        return await call_next(request)
+
+    supplied = request.query_params.get("k")
+    if supplied == ACCESS_KEY:
+        response = await call_next(request)
+        response.set_cookie(
+            ACCESS_COOKIE, ACCESS_KEY,
+            max_age=60 * 60 * 24 * 30, httponly=True, samesite="lax", path="/",
+        )
+        return response
+
+    if request.cookies.get(ACCESS_COOKIE) == ACCESS_KEY:
+        return await call_next(request)
+
+    return Response("Not Found", status_code=404, media_type="text/plain")
+
 
 @app.middleware("http")
 async def disable_ui_cache(request: Request, call_next):
