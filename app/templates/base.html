@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0a0d13">
   <title>{% block title %}{{ app_name }}{% endblock %}</title>
   <link rel="stylesheet" href="/static/product-warm-teal-174.css?v=178">
-  <link rel="stylesheet" href="/static/dashboard-dark.css?v=14">
+  <link rel="stylesheet" href="/static/dashboard-dark.css?v=28">
   <script src="/static/charts.js?v=5"></script>
 </head>
 <body>
@@ -48,6 +48,18 @@
       <div class="nav-group">
         <div class="nav-group-title"><span class="nav-icon">◎</span>設備監視</div>
         <a class="nav-sub-item {% if active_page=='nutrunner_detail' %}active{% endif %}" href="/monitoring/nut-runner-pu01"><span class="tick">▶</span>ナットランナーPU-01</a>
+        <a class="nav-sub-item {% if active_page=='nutrunner_detail2' %}active{% endif %}" href="/monitoring/nut-runner-pu01-2"><span class="tick">▶</span>ナットランナーPU-01</a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-title"><span class="nav-icon">🛠</span>保全</div>
+        <a class="nav-sub-item {% if active_page=='maintenance_info' %}active{% endif %}" href="/maintenance/info"><span class="tick">▶</span>保全情報</a>
+        <a class="nav-sub-item {% if active_page=='maintenance_info2' %}active{% endif %}" href="/maintenance/info2"><span class="tick">▶</span>保全情報2</a>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-title"><span class="nav-icon">⛭</span>生産状況</div>
+        <a class="nav-sub-item {% if active_page=='production_status' %}active{% endif %}" href="/production/status"><span class="tick">▶</span>生産状況</a>
       </div>
 
       <div class="nav-group">

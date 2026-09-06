@@ -1,0 +1,16 @@
+﻿key,value
+current,5
+target,10
+target_relative,50
+availability,95
+planned_working_pct,66
+planned_marker_pct,50
+overtime_planned,10
+overtime,"2,5"
+errors,2
+lack,30
+failed,5
+errors_bar_px,6
+lack_bar_px,97
+failed_bar_px,45
+produced_interval_sec,2

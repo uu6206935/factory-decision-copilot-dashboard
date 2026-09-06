@@ -1,0 +1,411 @@
+{% extends "base.html" %}
+{% block title %}保全情報 · {{ app_name }}{% endblock %}
+{% block page_title %}{{ page_label|default('保全情報') }} <button type="button" class="mi-ai-toggle" id="miAiToggle"><span id="miAiToggleArrow">▶</span> AIアシスタント</button>{% if mascot %}<span class="mi-mascot" id="miMascot" role="button" tabindex="0" title="{{ mascot.name }}"><img src="{{ mascot.image }}" alt="{{ mascot.name }}"><span class="mi-bubble">{{ mascot.bubble }}</span></span>{% endif %}{% endblock %}
+{% block content %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;900&display=swap">
+{% macro arrow(dir, cls) %}
+<svg viewBox="0 0 24 24" aria-hidden="true"{% if dir == '↓' %} style="transform:rotate(180deg)"{% endif %}><path d="M12 2.5 L21.5 13 H15.8 V21.5 H8.2 V13 H2.5 Z" fill="{{ '#3fc41c' if cls == 'good' else '#ff3b30' }}"/></svg>
+{% endmacro %}
+{% macro warn_icon(kind) %}
+{% if kind == 'critical' %}
+<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2 L23 21.8 H1 Z" fill="#f5c400"/><path d="M12 9.2 V15.2" stroke="#000" stroke-width="2.6" stroke-linecap="round"/><circle cx="12" cy="18.6" r="1.5" fill="#000"/></svg>
+{% else %}
+<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2 L23 21.8 H1 Z" fill="#111"/><path d="M12 9.2 V15.2" stroke="#f5c400" stroke-width="2.6" stroke-linecap="round"/><circle cx="12" cy="18.6" r="1.5" fill="#f5c400"/></svg>
+{% endif %}
+{% endmacro %}
+{% macro status_icon(tier) %}
+{% if tier == 'critical' %}
+<svg viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="18" fill="none" stroke="#ff3b30" stroke-width="3.6"/><path d="M22 12 V26" stroke="#ff3b30" stroke-width="4.4" stroke-linecap="round"/><circle cx="22" cy="32.5" r="2.7" fill="#ff3b30"/></svg>
+{% elif tier == 'warning' %}
+<svg viewBox="0 0 44 44" aria-hidden="true"><path d="M22 5.5 L41 38.5 H3 Z" fill="none" stroke="#f5b400" stroke-width="3.6" stroke-linejoin="round"/><path d="M22 17 V27.5" stroke="#f5b400" stroke-width="4" stroke-linecap="round"/><circle cx="22" cy="33" r="2.4" fill="#f5b400"/></svg>
+{% elif tier == 'normal' %}
+<svg viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="18" fill="none" stroke="#3fc41c" stroke-width="3.6"/><path d="M13 22.5 L19.5 29 L31.5 15.5" fill="none" stroke="#3fc41c" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+{% else %}
+<svg viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="18" fill="none" stroke="#8fa0b3" stroke-width="3.6"/><rect x="15.5" y="14" width="4.6" height="16" fill="#8fa0b3"/><rect x="23.9" y="14" width="4.6" height="16" fill="#8fa0b3"/></svg>
+{% endif %}
+{% endmacro %}
+{% set dot_color = {'red': '#e8322a', 'yellow': '#f5b400', 'blue': '#2f8fff', 'total': '#f2f2f2'} %}
+
+<div class="mi-page">
+  <div class="mi-body ai-hidden" id="miBody">
+    <div class="mi-main" id="miMain">
+      <div class="mi-canvas" id="miCanvas">
+
+        <div class="mi-head">
+          <span class="fac">{{ mt.meta.factory_name }}</span>
+          <span class="ttl">{{ mt.meta.title }}</span>
+          <span class="sub">{{ mt.meta.subtitle }}</span>
+          <span class="mi-stripes"></span>
+          <span class="line">{{ mt.meta.line_name }}</span>
+          <span class="vsep"></span>
+          <span class="date">{{ mt.meta.report_date }}</span>
+          <span class="shift">{{ mt.meta.shift }}</span>
+          <span class="auto"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="6" fill="#3fc41c"/></svg>{{ mt.meta.auto_refresh_label }}：{{ mt.meta.auto_refresh }}</span>
+        </div>
+
+        <div class="mi-kpis">
+          {% for k in mt.kpis %}
+          <div class="mi-kpi {% if k.tier == 'critical' %}red{% elif k.tier == 'neutral' %}neutral{% endif %}">
+            <div class="lbl">{{ k.label }}</div>
+            <div class="val">{{ k.value }}<small>{{ k.unit }}</small></div>
+            <div class="sep"></div>
+            <div class="rows">
+              <div><span>前日比</span><span>{{ k.day_delta.text }}{{ k.unit if k.unit == '%' else ' ' ~ k.unit }}</span>{{ arrow(k.day_delta.arrow, k.day_delta.cls) }}</div>
+              <div><span>前週比</span><span>{{ k.week_delta.text }}{{ k.unit if k.unit == '%' else ' ' ~ k.unit }}</span>{{ arrow(k.week_delta.arrow, k.week_delta.cls) }}</div>
+            </div>
+          </div>
+          {% endfor %}
+          <div class="mi-kpi amber">
+            <div class="lbl">{{ mt.rate.label }}</div>
+            <div class="val">{{ mt.rate.value }}<small>{{ mt.rate.unit }}</small></div>
+            <div class="sep"></div>
+            <div class="rows">
+              <div><span>{{ mt.rate.rework_label }}</span><span>{{ mt.rate.rework_total }} {{ mt.rate.rework_unit }}</span></div>
+              <div><span>{{ mt.rate.production_label }}</span><span>{{ mt.rate.production_total }} {{ mt.rate.production_unit }}</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mi-mid">
+          <div class="mi-panel">
+            <div class="ttl" style="left:15px">異常工程ワースト3（件数）</div>
+            <div class="ttl" style="left:363px">設備停止時間ワースト3（時間）</div>
+            <div class="mi-tables">
+              <table class="mi-tbl">
+                <colgroup><col style="width:42px"><col style="width:128px"><col style="width:58px"><col style="width:55px"><col style="width:52px"></colgroup>
+                <thead><tr><th>順位</th><th>工程</th><th>件数</th><th>前日比</th><th>変化点</th></tr></thead>
+                <tbody>
+                  {% for r in mt.worst_anomaly %}
+                  <tr class="{{ r.flag if r.flag != 'none' else '' }}">
+                    <td>{{ r.rank }}</td>
+                    <td class="proc">{{ r.process }}</td>
+                    <td>{{ r.count }} 件</td>
+                    <td class="{{ 'good' if r.day_delta.cls == 'good' else '' }}">{{ r.day_delta.text }}</td>
+                    <td>{% if r.flag != 'none' %}{{ warn_icon(r.flag) }}{% else %}—{% endif %}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+              <table class="mi-tbl">
+                <colgroup><col style="width:42px"><col style="width:128px"><col style="width:58px"><col style="width:55px"><col style="width:52px"></colgroup>
+                <thead><tr><th>順位</th><th>工程</th><th>件数</th><th>前日比</th><th>変化点</th></tr></thead>
+                <tbody>
+                  {% for r in mt.worst_stoptime %}
+                  <tr class="{{ r.flag if r.flag != 'none' else '' }}">
+                    <td>{{ r.rank }}</td>
+                    <td class="proc">{{ r.process }}</td>
+                    <td>{{ r.hours }} 時</td>
+                    <td class="{{ 'good' if r.day_delta.cls == 'good' else '' }}">{{ r.day_delta.text }}</td>
+                    <td>{% if r.flag != 'none' %}{{ warn_icon(r.flag) }}{% else %}—{% endif %}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="mi-panel">
+            <div class="ttl" style="left:15px">設備ステータスサマリー</div>
+            <div class="mi-status">
+              {% for s in mt.status_summary %}
+              <div class="mi-scard {{ s.tier }}">
+                <div class="t">{{ s.label }}</div>
+                <div class="n">{{ status_icon(s.tier) }}<b>{{ s.count }}</b><span>台</span></div>
+                <div class="lnk">{{ s.link_label }} ›</div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <div class="mi-low">
+          <div class="mi-panel">
+            <div class="ttl" style="left:15px">異常工程ワースト3　推移（件数）</div>
+            <div class="mi-legend">
+              <span><svg width="40" height="16" aria-hidden="true"><line x1="0" y1="8" x2="40" y2="8" stroke="#f2f2f2" stroke-width="2" stroke-dasharray="7 5"/></svg>{{ mt.trend.legend.total }}</span>
+              {% for key in ['red', 'yellow', 'blue'] %}
+              <span><svg width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="{{ dot_color[key] }}"/></svg>{{ mt.trend.legend[key] }}</span>
+              {% endfor %}
+            </div>
+            <div class="mi-trend" id="miTrend"></div>
+          </div>
+          <div class="mi-panel">
+            <div class="ttl" style="left:15px">主要設備の異常スコアトレンド</div>
+            <div class="mi-more">すべてのトレンドを見る ›</div>
+            <div class="mi-cols">
+              {% for c in mt.score_cards %}
+              <div class="mi-col {{ c.risk }}">
+                <div class="h"><b>{{ c.eq_id }} {{ c.eq_name }}</b><i>{{ c.badge }}</i></div>
+                <div class="l">異常スコア</div>
+                <div class="s">{{ c.score }}<span>/100</span></div>
+                <div class="mi-mini" id="miMini{{ loop.index }}"></div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <div class="mi-ai">
+          <div class="badge">
+            <svg viewBox="0 0 110 110" aria-hidden="true">
+              <g stroke="#1e8fff" stroke-width="2.4" fill="#1e8fff">
+                <line x1="38" y1="20" x2="38" y2="9"/><circle cx="38" cy="7" r="3"/>
+                <line x1="55" y1="20" x2="55" y2="9"/><circle cx="55" cy="7" r="3"/>
+                <line x1="72" y1="20" x2="72" y2="9"/><circle cx="72" cy="7" r="3"/>
+                <line x1="38" y1="90" x2="38" y2="101"/><circle cx="38" cy="103" r="3"/>
+                <line x1="55" y1="90" x2="55" y2="101"/><circle cx="55" cy="103" r="3"/>
+                <line x1="72" y1="90" x2="72" y2="101"/><circle cx="72" cy="103" r="3"/>
+                <line x1="20" y1="38" x2="9" y2="38"/><circle cx="7" cy="38" r="3"/>
+                <line x1="20" y1="55" x2="9" y2="55"/><circle cx="7" cy="55" r="3"/>
+                <line x1="20" y1="72" x2="9" y2="72"/><circle cx="7" cy="72" r="3"/>
+                <line x1="90" y1="38" x2="101" y2="38"/><circle cx="103" cy="38" r="3"/>
+                <line x1="90" y1="55" x2="101" y2="55"/><circle cx="103" cy="55" r="3"/>
+                <line x1="90" y1="72" x2="101" y2="72"/><circle cx="103" cy="72" r="3"/>
+              </g>
+              <rect x="20" y="20" width="70" height="70" rx="7" fill="#061524" stroke="#1e8fff" stroke-width="4"/>
+              <text x="55" y="67" text-anchor="middle" font-size="34" font-weight="700" fill="#fff" font-family="Inter,'Noto Sans JP',sans-serif">AI</text>
+            </svg>
+            <div class="t">AI 提案<small>（過去実績に基づく推奨）</small></div>
+          </div>
+          <div class="list">
+            {% for t in mt.ai_tips %}
+            <div class="row">
+              <svg viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="11" fill="{{ dot_color[t.color] }}"/></svg>
+              <span>{{ t.equipment }}</span>
+              <span>発生時刻{{ t.occurred }} 結番号{{ t.serial_no }}</span>
+              <span>HealthScore {{ t.health_score }}</span>
+              <span>{{ t.comment }}</span>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="nr-panel nr-ai-panel mi-ai-panel" id="miAiPanel">
+      <div class="nr-panel-head">AIアシスタント（生成AI）<button class="nr-ai-reset" id="miChatReset">リセット</button></div>
+      <div class="nr-chat-body" id="miChatBody">
+        {% for m in mt.chat %}
+        <div class="nr-chat-msg {{ m.sender }}">
+          {% if m.sender == 'user' %}<div class="nr-chat-avatar">操</div>{% elif mascot %}<div class="nr-chat-avatar mascot"><img src="{{ mascot.avatar }}" alt="{{ mascot.name }}"></div>{% else %}<div class="nr-chat-avatar">AI</div>{% endif %}
+          <div class="nr-chat-content">
+            <div class="nr-chat-meta">{{ 'あなた' if m.sender == 'user' else 'AIアシスタント' }} {{ m.time }}</div>
+            <div class="nr-chat-bubble">{{ m.text }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="nr-chat-input-row"><input type="text" id="miChatInput" placeholder="質問を入力してください。"><button id="miChatSend">送信</button></div>
+      <div class="nr-chat-disclaimer">＊生成AIの回答は参考情報であり、正確性を保証するものではありません。</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var mt = {{ mt|tojson }};
+  var AI_AVATAR = {{ (mascot.avatar if mascot else '')|tojson }};
+  var NS = 'http://www.w3.org/2000/svg';
+  var FONT = "'Noto Sans JP','Hiragino Kaku Gothic ProN','Yu Gothic',Meiryo,sans-serif";
+  function el(tag, attrs, kids){
+    var n = document.createElementNS(NS, tag);
+    for (var k in attrs) n.setAttribute(k, attrs[k]);
+    (kids || []).forEach(function(c){ n.appendChild(c); });
+    return n;
+  }
+  function txt(x, y, s, attrs){
+    var t = el('text', Object.assign({ x: x, y: y, 'font-family': FONT }, attrs || {}));
+    t.textContent = s;
+    return t;
+  }
+
+  // ---- 異常工程ワースト3 推移（件数）: 613×262 plot, y 0–180 step 20 ----
+  (function(){
+    var host = document.getElementById('miTrend');
+    var W = 613, H = 262, X0 = 120, X1 = 550, Y0 = 14, Y1 = 211, AX = 54, AY = 218;
+    var labels = mt.trend.labels, n = labels.length;
+    var x = function(i){ return X0 + (X1 - X0) * i / Math.max(1, n - 1); };
+    var y = function(v){ return Y1 - (Y1 - Y0) * v / 180; };
+    var svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H });
+    for (var v = 0; v <= 180; v += 20) {
+      svg.appendChild(txt(AX - 10, y(v) + 5, v, { 'text-anchor': 'end', 'font-size': 15, fill: '#e8e8e8' }));
+    }
+    svg.appendChild(el('line', { x1: AX, y1: Y0 - 6, x2: AX, y2: AY, stroke: '#6a6a6a', 'stroke-width': 1 }));
+    svg.appendChild(el('line', { x1: AX, y1: AY, x2: W - 22, y2: AY, stroke: '#6a6a6a', 'stroke-width': 1 }));
+    labels.forEach(function(lab, i){
+      svg.appendChild(txt(x(i), AY + 24, lab, { 'text-anchor': 'middle', 'font-size': 16, fill: '#e8e8e8' }));
+    });
+    var series = [
+      { key: 'total', stroke: '#f2f2f2', dash: '7 5', width: 2, marker: '#f2f2f2', label: 'above', lc: '#fff', lsize: 16 },
+      { key: 'red', stroke: '#e8322a', width: 2.6, marker: '#f39a2b', label: 'above', lc: '#fff', lsize: 15, end: '#fff' },
+      { key: 'yellow', stroke: '#f5b400', width: 2.6, marker: '#f5b400', end: '#f5b400' },
+      { key: 'blue', stroke: '#2f8fff', width: 2.6, marker: '#2f8fff', label: 'below', lc: '#2f8fff', lsize: 13, end: '#2f8fff' }
+    ];
+    var endLabels = [];
+    series.forEach(function(s){
+      var vals = mt.trend[s.key];
+      var d = vals.map(function(v, i){ return (i ? 'L' : 'M') + x(i).toFixed(1) + ',' + y(v).toFixed(1); }).join(' ');
+      var attrs = { d: d, fill: 'none', stroke: s.stroke, 'stroke-width': s.width, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' };
+      if (s.dash) attrs['stroke-dasharray'] = s.dash;
+      svg.appendChild(el('path', attrs));
+      vals.forEach(function(v, i){
+        svg.appendChild(el('circle', { cx: x(i), cy: y(v), r: 5.5, fill: s.marker }));
+        if (s.label === 'above') svg.appendChild(txt(x(i), y(v) - 12, v, { 'text-anchor': 'middle', 'font-size': s.lsize, 'font-weight': 600, fill: s.lc }));
+        if (s.label === 'below') svg.appendChild(txt(x(i), y(v) + 19, v, { 'text-anchor': 'middle', 'font-size': s.lsize, 'font-weight': 600, fill: s.lc }));
+      });
+      if (s.end) endLabels.push({ v: vals[n - 1], y: y(vals[n - 1]), color: s.end });
+    });
+    // Latest-value labels beside the right edge, spread apart (min 17px)
+    // so the three clustered lines stay readable, top-down like the reference.
+    endLabels.sort(function(a, b){ return a.y - b.y; });
+    for (var k = 1; k < endLabels.length; k++) {
+      if (endLabels[k].y - endLabels[k - 1].y < 17) endLabels[k].y = endLabels[k - 1].y + 17;
+    }
+    endLabels.forEach(function(e){
+      svg.appendChild(txt(X1 + 18, e.y + 5, e.v, { 'text-anchor': 'start', 'font-size': 14, 'font-weight': 600, fill: e.color }));
+    });
+    host.appendChild(svg);
+  })();
+
+  // ---- 主要設備の異常スコアトレンド: 172×152 sparkline with gradient fill ----
+  var RISK_COLOR = { high: '#e8322a', mid: '#f5b400', low: '#3fc41c' };
+  mt.score_cards.forEach(function(c, idx){
+    var host = document.getElementById('miMini' + (idx + 1));
+    var W = 172, H = 152, X0 = 26, X1 = 166, Y0 = 8, Y1 = 128;
+    var vals = c.series.values, n = vals.length, color = RISK_COLOR[c.risk] || '#e8322a';
+    var x = function(i){ return X0 + (X1 - X0) * i / Math.max(1, n - 1); };
+    var y = function(v){ return Y1 - (Y1 - Y0) * v / 100; };
+    var svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H });
+    var gid = 'miGrad' + idx;
+    var grad = el('linearGradient', { id: gid, x1: 0, y1: 0, x2: 0, y2: 1 }, [
+      el('stop', { offset: '0%', 'stop-color': color, 'stop-opacity': 0.55 }),
+      el('stop', { offset: '100%', 'stop-color': color, 'stop-opacity': 0.02 })
+    ]);
+    svg.appendChild(el('defs', {}, [grad]));
+    [100, 50, 0].forEach(function(v){
+      svg.appendChild(txt(X0 - 6, y(v) + 4, v, { 'text-anchor': 'end', 'font-size': 11, fill: '#d0d0d0' }));
+    });
+    svg.appendChild(el('line', { x1: X0, y1: Y0 - 4, x2: X0, y2: Y1, stroke: '#555', 'stroke-width': 1 }));
+    svg.appendChild(el('line', { x1: X0, y1: Y1, x2: X1 + 2, y2: Y1, stroke: '#555', 'stroke-width': 1 }));
+    if (n) {
+      var line = vals.map(function(v, i){ return (i ? 'L' : 'M') + x(i).toFixed(1) + ',' + y(v).toFixed(1); }).join(' ');
+      svg.appendChild(el('path', { d: line + ' L' + x(n - 1).toFixed(1) + ',' + Y1 + ' L' + x(0).toFixed(1) + ',' + Y1 + ' Z', fill: 'url(#' + gid + ')', stroke: 'none' }));
+      svg.appendChild(el('path', { d: line, fill: 'none', stroke: color, 'stroke-width': 1.6, 'stroke-linejoin': 'round' }));
+    }
+    var xl = c.series.labels;
+    var lab = function(i){ return (xl[i] || '').replace(/^0?(\d+)\/0?(\d+).*$/, '$1/$2'); };
+    svg.appendChild(txt(X0, H - 4, lab(0), { 'text-anchor': 'start', 'font-size': 11, fill: '#d0d0d0' }));
+    svg.appendChild(txt((X0 + X1) / 2, H - 4, lab(Math.floor((n - 1) / 2)), { 'text-anchor': 'middle', 'font-size': 11, fill: '#d0d0d0' }));
+    svg.appendChild(txt(X1 + 4, H - 4, lab(n - 1) + '(本日)', { 'text-anchor': 'end', 'font-size': 11, fill: '#d0d0d0' }));
+    host.appendChild(svg);
+  });
+
+  // ---- Toggleable AI panel + canvas fit ----
+  // The dashboard is authored on a fixed 1450px canvas and CSS-zoomed to
+  // whatever width is left beside the (400px) AI panel. Hiding the panel
+  // gives the canvas the full width; showing it shrinks the canvas back.
+  var body = document.getElementById('miBody');
+  var main = document.getElementById('miMain');
+  var canvas = document.getElementById('miCanvas');
+  var toggleBtn = document.getElementById('miAiToggle');
+  var toggleArrow = document.getElementById('miAiToggleArrow');
+  var panel = document.getElementById('miAiPanel');
+  function fitCanvas(){
+    var w = main.clientWidth;
+    if (!w) return;
+    var z = w / 1450;
+    canvas.style.zoom = String(z);
+    // Pin the chat panel to exactly the zoomed dashboard height (minus its
+    // 14px top/bottom margins) so a growing conversation scrolls inside the
+    // panel instead of stretching the page downwards.
+    if (panel) panel.style.height = (Math.round(1086 * z) - 28) + 'px';
+    // let base.html's scale-to-fit re-measure the page height
+    window.dispatchEvent(new Event('resize'));
+  }
+  fitCanvas();
+  window.addEventListener('load', fitCanvas);
+  setTimeout(fitCanvas, 300);
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', function(){
+      var hidden = body.classList.toggle('ai-hidden');
+      toggleArrow.textContent = hidden ? '▶' : '◀';
+      fitCanvas();
+    });
+  }
+  // Mascot (こひにゃん) beside the toggle: clicking it opens/closes the AI panel too.
+  var mascotEl = document.getElementById('miMascot');
+  if (mascotEl && toggleBtn) {
+    mascotEl.addEventListener('click', function(){ toggleBtn.click(); });
+    mascotEl.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleBtn.click(); } });
+  }
+
+  // ---- Live AI chat: DeepSeek answers from this page's maintenance_*.csv ----
+  var chatBody = document.getElementById('miChatBody');
+  var input = document.getElementById('miChatInput');
+  var sendBtn = document.getElementById('miChatSend');
+  var resetBtn = document.getElementById('miChatReset');
+  if (chatBody && input && sendBtn) {
+    var addMessage = function(sender, label, time, msgText, isDynamic){
+      var wrap = document.createElement('div');
+      wrap.className = 'nr-chat-msg ' + sender + (isDynamic ? ' dynamic-msg' : '');
+      var avatar = document.createElement('div');
+      avatar.className = 'nr-chat-avatar';
+      if (sender !== 'user' && AI_AVATAR) {
+        avatar.classList.add('mascot');
+        var im = document.createElement('img'); im.src = AI_AVATAR; im.alt = ''; avatar.appendChild(im);
+      } else {
+        avatar.textContent = sender === 'user' ? '操' : 'AI';
+      }
+      var content = document.createElement('div');
+      content.className = 'nr-chat-content';
+      var meta = document.createElement('div');
+      meta.className = 'nr-chat-meta';
+      meta.textContent = label + (time ? ' ' + time : '');
+      var bubble = document.createElement('div');
+      bubble.className = 'nr-chat-bubble';
+      bubble.textContent = msgText;
+      content.appendChild(meta);
+      content.appendChild(bubble);
+      wrap.appendChild(avatar);
+      wrap.appendChild(content);
+      chatBody.appendChild(wrap);
+      chatBody.scrollTop = chatBody.scrollHeight;
+      return bubble;
+    };
+    var nowTime = function(){
+      var d = new Date(), p = function(n){ return String(n).padStart(2, '0'); };
+      return p(d.getHours()) + ':' + p(d.getMinutes());
+    };
+    var send = function(){
+      var q = input.value.trim();
+      if (!q || sendBtn.disabled) return;
+      input.value = '';
+      sendBtn.disabled = true;
+      addMessage('user', 'あなた', nowTime(), q, true);
+      var thinking = addMessage('ai', 'AIアシスタント', nowTime(), '考え中…', true);
+      fetch('/api/v1/maintenance/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: q })
+      }).then(function(r){ return r.json(); }).then(function(data){
+        thinking.textContent = data.ok ? data.answer : ('⚠ ' + data.error);
+      }).catch(function(){
+        thinking.textContent = '⚠ 通信エラーが発生しました。しばらくしてから再度お試しください。';
+      }).finally(function(){
+        sendBtn.disabled = false;
+        chatBody.scrollTop = chatBody.scrollHeight;
+      });
+    };
+    sendBtn.addEventListener('click', send);
+    input.addEventListener('keydown', function(e){ if (e.key === 'Enter') send(); });
+    if (resetBtn) {
+      resetBtn.addEventListener('click', function(){
+        chatBody.querySelectorAll('.dynamic-msg').forEach(function(el){ el.remove(); });
+      });
+    }
+  }
+})();
+</script>
+{% endblock %}

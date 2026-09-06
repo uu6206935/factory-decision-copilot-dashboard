@@ -1,0 +1,6 @@
+﻿key,label,color,axis
+anomaly_score,１軸,#e5322d,left
+discharge_pressure,２軸,#3b9dff,left
+current_oc,３軸,#f5c400,left
+motor_current,４軸,#5cc84a,left
+temperature,５軸,#a45fe0,left

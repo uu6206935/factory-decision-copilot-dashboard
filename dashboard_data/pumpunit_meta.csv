@@ -1,0 +1,15 @@
+﻿key,value
+app_name,Factory Guardian
+crumb1,設備一覧
+crumb2,設備詳細
+datetime,2025/05/19  10:30:00
+auto_refresh,自動更新 ON
+bell_count,1
+user,管理者
+equipment_name,ナットランナーPU-01
+tag,重要設備
+area_line,エリアA / 製造ライン1
+active_tab,概要
+period,24時間
+structure_image,/static/nutrunner_section.png
+mini_start,05/19 00:00

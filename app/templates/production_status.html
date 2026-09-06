@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+{% block title %}生産状況 · {{ app_name }}{% endblock %}
+{% block page_title %}生産状況{% endblock %}
+{% block content %}
+{% set fill = {'green': '#1de84a', 'red': '#f52a2f', 'grey': '#dedede'} %}
+{% macro car_glyph(x, y, color) %}
+<g transform="translate({{ x }},{{ y }})"><path d="M1 8 L4.5 3 H14 L17.5 8 H19.5 V12.5 H0.5 V8 Z" fill="{{ color }}"/><circle cx="5" cy="12.5" r="2.4" fill="{{ color }}" stroke="#000" stroke-width="1"/><circle cx="15" cy="12.5" r="2.4" fill="{{ color }}" stroke="#000" stroke-width="1"/><rect x="6" y="4.5" width="3" height="3" fill="#000"/><rect x="10.5" y="4.5" width="3" height="3" fill="#000"/></g>
+{% endmacro %}
+{% macro badge(x, y, n) %}
+<circle cx="{{ x }}" cy="{{ y }}" r="7" fill="#ff1a1a"/><text x="{{ x }}" y="{{ y + 3.5 }}" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">{{ n }}</text>
+{% endmacro %}
+
+<div class="ps-page">
+  <div class="ps-canvas" id="psCanvas">
+    <div class="ps-hl" style="top:1px"></div>
+    <div class="ps-hl" style="top:930px"></div>
+
+    <div class="ps-map">
+      <svg viewBox="0 0 1422 941" xmlns="http://www.w3.org/2000/svg">
+        <!-- conveyor tracks: outline / black bed / blue pallets / cell separators -->
+        <g fill="none">
+          {% for t in ps.tracks %}
+          <path d="{{ t.d }}" stroke="#cfd6dd" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+          {% endfor %}
+          {% for t in ps.tracks %}
+          <path d="{{ t.d }}" stroke="#000" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+          {% endfor %}
+          {% for t in ps.tracks %}
+          <path class="ps-flow" d="{{ t.d }}" stroke="#1e9bff" stroke-width="17" stroke-dasharray="15 25" stroke-dashoffset="-2.5"/>
+          {% endfor %}
+          {% for t in ps.tracks %}
+          <path d="{{ t.d }}" stroke="#b4bcc4" stroke-width="22" stroke-dasharray="1.5 18.5" stroke-dashoffset="0.75"/>
+          {% endfor %}
+        </g>
+
+        <!-- thin connector lines -->
+        {% for l in ps.lines %}
+        <line x1="{{ l.x1 }}" y1="{{ l.y1 }}" x2="{{ l.x2 }}" y2="{{ l.y2 }}" stroke="#e8e8e8" stroke-width="1.5"/>
+        {% endfor %}
+
+        <!-- stations -->
+        {% for s in ps.stations %}
+        {% set cx = s.x + s.w / 2 %}
+        <rect x="{{ s.x }}" y="{{ s.y }}" width="{{ s.w }}" height="{{ s.h }}" rx="7" fill="{{ fill[s.state] }}"/>
+        {% if s.label %}
+          {% if '|' in s.label %}
+            {% for part in s.label.split('|') %}
+            <text x="{{ cx }}" y="{{ s.label_y + loop.index0 * 22 + 6 }}" text-anchor="middle" font-size="18" font-weight="700" fill="#000">{{ part }}</text>
+            {% endfor %}
+          {% else %}
+            <text x="{{ cx }}" y="{{ s.label_y + 6 }}" text-anchor="middle" font-size="18" font-weight="700" fill="#000">{{ s.label }}</text>
+          {% endif %}
+        {% endif %}
+        {% if s.produced != '' %}
+        <text x="{{ cx }}" y="{{ s.produced_y + 4 }}" text-anchor="middle" font-size="11.5" font-weight="700" fill="#000">Produced</text>
+        <rect x="{{ cx - 27 }}" y="{{ s.produced_y + 9 }}" width="54" height="18" fill="#fff" stroke="#8a8a8a" stroke-width="1"/>
+        <text class="ps-produced" data-start="{{ s.produced }}" x="{{ cx + 22 }}" y="{{ s.produced_y + 23 }}" text-anchor="end" font-size="14" font-weight="700" fill="#000">{{ s.produced }}</text>
+        {% endif %}
+        {% if s.car %}
+        <rect x="{{ s.x + 3 }}" y="{{ s.y + s.h - 58 }}" width="{{ s.w - 6 }}" height="53" rx="3" fill="#ffe600" stroke="#000" stroke-width="2"/>
+        <g transform="translate({{ cx - 17 }},{{ s.y + s.h - 40 }}) scale(1.7)">
+          <path d="M1 8 L4.5 3 H14 L17.5 8 H19.5 V12.5 H0.5 V8 Z" fill="#000"/><circle cx="5" cy="12.5" r="2.4" fill="#ffe600" stroke="#000" stroke-width="1"/><circle cx="15" cy="12.5" r="2.4" fill="#ffe600" stroke="#000" stroke-width="1"/><rect x="6" y="4.5" width="3" height="3" fill="#ffe600"/><rect x="10.5" y="4.5" width="3" height="3" fill="#ffe600"/>
+        </g>
+        {% endif %}
+        {% endfor %}
+
+        <!-- carry labels -->
+        {% for c in ps.carries %}
+        <text x="{{ c.x }}" y="{{ c.y + 4 }}" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">{{ c.label }}</text>
+        {% if c.marker == 'badge' %}
+          {{ badge(c.x, c.y + 18, c.count) }}
+        {% elif c.marker == 'count' %}
+          <text x="{{ c.x }}" y="{{ c.y + 24 }}" text-anchor="middle" font-size="16" font-weight="700" fill="#ff1a1a">{{ c.count }}</text>
+          <rect x="{{ c.x - 36 }}" y="{{ c.y + 24 }}" width="9" height="9" fill="#ff1a1a"/>
+        {% elif c.marker == 'vehicle' %}
+          <g transform="translate({{ c.x - 30 }},{{ c.y + 12 }})">
+            <rect x="0" y="6" width="58" height="16" rx="3" fill="#ffe600"/>
+            <rect x="21" y="0" width="16" height="7" fill="#ffe600"/>
+            <rect x="27" y="-3" width="4" height="4" fill="#ffe600"/>
+            <line x1="0" y1="14" x2="58" y2="14" stroke="#000" stroke-width="1.2"/>
+            <circle cx="12" cy="24" r="3.2" fill="#000" stroke="#ffe600" stroke-width="1"/>
+            <circle cx="46" cy="24" r="3.2" fill="#000" stroke="#ffe600" stroke-width="1"/>
+          </g>
+        {% elif c.marker == 'bar' %}
+          <text x="{{ c.x }}" y="{{ c.y + 22 }}" text-anchor="middle" font-size="16" font-weight="700" fill="#fff">{{ c.count }}</text>
+          <rect x="{{ c.x - 30 }}" y="{{ c.y + 27 }}" width="56" height="10" fill="#1e9bff"/>
+          <rect x="{{ c.x - 18 }}" y="{{ c.y + 36 }}" width="6" height="4" fill="#1e9bff"/>
+          <rect x="{{ c.x + 12 }}" y="{{ c.y + 36 }}" width="6" height="4" fill="#1e9bff"/>
+        {% endif %}
+        {% if c.arrows_y %}
+          <polygon points="{{ c.x - c.arrow_dx }},{{ c.arrows_y - 5 }} {{ c.x - c.arrow_dx + 5 }},{{ c.arrows_y + 3 }} {{ c.x - c.arrow_dx - 5 }},{{ c.arrows_y + 3 }}" fill="#fff"/>
+          <polygon points="{{ c.x + c.arrow_dx }},{{ c.arrows_y - 5 }} {{ c.x + c.arrow_dx + 5 }},{{ c.arrows_y + 3 }} {{ c.x + c.arrow_dx - 5 }},{{ c.arrows_y + 3 }}" fill="#fff"/>
+        {% endif %}
+        {% endfor %}
+
+        <!-- indicators -->
+        {% for i in ps.indicators %}
+        {% if i.icon == 'car' %}
+          {{ car_glyph(i.x - 10, i.y - 8, '#fff') }}
+        {% elif i.icon == 'alert' %}
+          <circle cx="{{ i.x }}" cy="{{ i.y }}" r="8" fill="none" stroke="#fff" stroke-width="1.8"/>
+          <line x1="{{ i.x - 6 }}" y1="{{ i.y }}" x2="{{ i.x + 6 }}" y2="{{ i.y }}" stroke="#fff" stroke-width="1.2"/>
+          <text x="{{ i.x }}" y="{{ i.y + 4 }}" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">!</text>
+        {% else %}
+          <text x="{{ i.x }}" y="{{ i.y + 4 }}" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">{{ i.icon|upper }}</text>
+          <line x1="{{ i.x - 10 }}" y1="{{ i.y - 8 }}" x2="{{ i.x + 10 }}" y2="{{ i.y - 8 }}" stroke="#fff" stroke-width="1.2"/>
+        {% endif %}
+        {% if i.count_style == 'badge' %}
+          {{ badge(i.x + 16, i.y, i.count) }}
+        {% else %}
+          <text x="{{ i.x + 12 }}" y="{{ i.y + 5 }}" text-anchor="start" font-size="17" font-weight="700" fill="#ff1a1a">{{ i.count }}</text>
+          <rect x="{{ i.x + 7 }}" y="{{ i.y + 12 }}" width="9" height="9" fill="#ff1a1a"/>
+        {% endif %}
+        {% if i.label %}
+          <text x="{{ i.label_x }}" y="{{ i.label_y }}" text-anchor="start" font-size="12" font-weight="700" fill="#fff">{{ i.label }}</text>
+        {% endif %}
+        {% endfor %}
+      </svg>
+    </div>
+
+    <div class="ps-side">
+      <div class="t big" style="left:38px;top:14px">{{ ps.meta.current }}</div>
+      <div class="t lbl" style="left:14px;top:52px">Current</div>
+      <div class="t big" style="left:132px;top:14px">{{ ps.meta.target }}</div>
+      <div class="t lbl" style="left:112px;top:52px">Target</div>
+      <div class="ps-bar" style="left:12px;top:84px;width:186px;height:22px"><i style="width:{{ ps.meta.target_relative }}%;background:#1a8cff"></i></div>
+      <div class="t lbl" style="left:15px;top:118px">Target relative</div>
+      <div class="t num" style="left:134px;top:110px">{{ ps.meta.target_relative }} %</div>
+      <div class="hr" style="top:158px"></div>
+
+      <div class="ico" style="left:46px;top:166px">
+        <svg width="120" height="112" viewBox="0 0 120 112">
+          <path d="M37.5 99 A45 45 0 1 1 82.5 99" fill="none" stroke="#22e04a" stroke-width="11" stroke-linecap="round"/>
+          <path d="M60 60 L79 27" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
+          <circle cx="60" cy="60" r="4" fill="#fff"/>
+          <text x="60" y="94" text-anchor="middle" font-size="30" font-weight="700" fill="#fff">{{ ps.meta.availability }}</text>
+        </svg>
+      </div>
+      <div class="t lbl" style="left:14px;top:265px">Availability</div>
+      <div class="hr" style="top:298px"></div>
+
+      <div class="ps-bar" style="left:15px;top:308px;width:186px;height:22px"><i style="width:{{ ps.meta.planned_working_pct }}%;background:#f0262c"></i><span class="mark" style="left:{{ ps.meta.planned_marker_pct }}%"></span></div>
+      <div class="t lbl" style="left:15px;top:340px">Planned Working time</div>
+      <div class="t num" style="left:162px;top:356px">{{ ps.meta.overtime_planned }}</div>
+      <div class="t lbl" style="left:15px;top:384px;font-size:18px;font-weight:700">Overtime</div>
+      <div class="t num" style="left:150px;top:396px">{{ ps.meta.overtime }}</div>
+      <div class="hr" style="top:437px"></div>
+
+      <div class="ico" style="left:20px;top:447px"><svg width="26" height="26" viewBox="0 0 26 26"><circle cx="13" cy="13" r="11" fill="none" stroke="#fff" stroke-width="2.4"/><line x1="13" y1="6.5" x2="13" y2="15" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="13" cy="19" r="1.8" fill="#fff"/></svg></div>
+      <div class="t num red" style="left:56px;top:444px;font-size:28px">{{ ps.meta.errors }}</div>
+      <span class="ps-block" style="left:20px;top:480px;width:{{ ps.meta.errors_bar_px }}px;height:22px;background:#ffe600"></span>
+      <div class="t lbl" style="left:20px;top:497px">Errors</div>
+
+      <div class="ico" style="left:17px;top:522px"><svg width="30" height="30" viewBox="0 0 30 30"><g fill="none" stroke="#fff" stroke-width="2.2"><circle cx="14" cy="16" r="7"/><g stroke-linecap="round"><line x1="14" y1="4" x2="14" y2="7.5"/><line x1="14" y1="24.5" x2="14" y2="28"/><line x1="2" y1="16" x2="5.5" y2="16"/><line x1="22.5" y1="16" x2="26" y2="16"/><line x1="5.5" y1="7.5" x2="8" y2="10"/><line x1="20" y1="22" x2="22.5" y2="24.5"/><line x1="22.5" y1="7.5" x2="20" y2="10"/><line x1="8" y1="22" x2="5.5" y2="24.5"/></g></g><circle cx="14" cy="16" r="2.5" fill="#fff"/><g stroke="#fff" stroke-width="2.2" stroke-linecap="round"><line x1="21" y1="3" x2="28" y2="10"/><line x1="28" y1="3" x2="21" y2="10"/></g></svg></div>
+      <div class="t num red" style="left:56px;top:520px;font-size:28px">{{ ps.meta.lack }}</div>
+      <span class="ps-block" style="left:20px;top:555px;width:{{ ps.meta.lack_bar_px }}px;height:15px;background:#f52a2f"></span>
+      <div class="t lbl" style="left:20px;top:570px">Lack</div>
+
+      <div class="ico" style="left:18px;top:598px"><svg width="30" height="22" viewBox="0 0 20 15">{{ car_glyph(0, 0, '#fff') }}</svg></div>
+      <div class="t num red" style="left:56px;top:595px;font-size:28px">{{ ps.meta.failed }}</div>
+      <span class="ps-block" style="left:20px;top:625px;width:{{ ps.meta.failed_bar_px }}px;height:15px;background:#ffe600"></span>
+      <div class="t lbl" style="left:20px;top:641px">Failed</div>
+      <div class="t" style="left:22px;top:670px;font-size:19px;font-weight:700">Overall error times</div>
+      <div class="hr" style="top:702px"></div>
+
+      <div class="ps-btn blue" style="left:12px;top:712px">
+        <svg viewBox="0 0 42 42"><path d="M3 21 C10 9 32 9 39 21 C32 33 10 33 3 21 Z" fill="none" stroke="#39a9ff" stroke-width="2.6"/><circle cx="21" cy="21" r="7" fill="none" stroke="#39a9ff" stroke-width="2.6"/><circle cx="21" cy="21" r="2.8" fill="#39a9ff"/></svg>
+      </div>
+      <div class="t" style="left:14px;top:780px;font-size:14px">Overview</div>
+      <div class="ps-circle blue" style="left:83px;top:707px"></div>
+      <div class="ps-circle blue" style="left:116px;top:707px"><svg viewBox="0 0 18 18"><circle cx="9" cy="9" r="3" fill="none" stroke="#fff" stroke-width="2"/><g stroke="#fff" stroke-width="2" stroke-linecap="round"><line x1="9" y1="1" x2="9" y2="3.5"/><line x1="9" y1="14.5" x2="9" y2="17"/><line x1="1" y1="9" x2="3.5" y2="9"/><line x1="14.5" y1="9" x2="17" y2="9"/><line x1="3.3" y1="3.3" x2="5.1" y2="5.1"/><line x1="12.9" y1="12.9" x2="14.7" y2="14.7"/><line x1="14.7" y1="3.3" x2="12.9" y2="5.1"/><line x1="5.1" y1="12.9" x2="3.3" y2="14.7"/></g></svg></div>
+      <div class="ps-circle" style="left:158px;top:707px"></div>
+      <div class="ps-tiny" style="left:192px;top:711px"><svg viewBox="0 0 22 22"><polygon points="12,1 4,12 10,12 8,21 18,9 12,9" fill="#fff"/></svg></div>
+      <div class="ps-circle" style="left:158px;top:745px"></div>
+      <div class="ps-tiny" style="left:192px;top:749px"><svg viewBox="0 0 22 22"><g fill="#fff"><circle cx="11" cy="5" r="3"/><circle cx="4" cy="16" r="3"/><circle cx="18" cy="16" r="3"/></g><g stroke="#fff" stroke-width="1.6"><line x1="11" y1="5" x2="4" y2="16"/><line x1="11" y1="5" x2="18" y2="16"/><line x1="4" y1="16" x2="18" y2="16"/></g></svg></div>
+      <div class="ps-circle" style="left:158px;top:783px"></div>
+      <div class="ps-tiny" style="left:192px;top:787px"><svg viewBox="0 0 22 22"><g fill="#fff"><circle cx="6" cy="6" r="3"/><circle cx="16" cy="9" r="3"/><circle cx="9" cy="17" r="3"/></g><g stroke="#fff" stroke-width="1.6"><line x1="6" y1="6" x2="16" y2="9"/><line x1="16" y1="9" x2="9" y2="17"/></g></svg></div>
+
+      <div class="ps-btn" style="left:14px;top:828px">
+        <svg viewBox="0 0 42 42"><path d="M12 30 V19 A9 9 0 0 1 30 19 V30 Z" fill="#fff"/><rect x="8" y="30" width="26" height="3.5" fill="#fff"/><rect x="18" y="34" width="6" height="3" fill="#fff"/><g stroke="#fff" stroke-width="2" stroke-linecap="round"><line x1="21" y1="3" x2="21" y2="7"/><line x1="8" y1="9" x2="11" y2="12"/><line x1="34" y1="9" x2="31" y2="12"/><line x1="4" y1="20" x2="8" y2="20"/><line x1="38" y1="20" x2="34" y2="20"/></g></svg>
+      </div>
+      <div class="t" style="left:28px;top:893px;font-size:14px">Alarm</div>
+      <div class="ps-btn" style="left:92px;top:828px">
+        <svg viewBox="0 0 42 42"><g stroke="#fff" stroke-width="4" stroke-linecap="round"><line x1="8" y1="34" x2="24" y2="18"/><line x1="16" y1="8" x2="34" y2="26"/></g><path d="M22 8 L30 4 L34 8 L30 16 Z" fill="#fff"/><rect x="26" y="26" width="10" height="10" transform="rotate(45 31 31)" fill="#fff"/></svg>
+      </div>
+      <div class="t" style="left:97px;top:893px;font-size:14px">Settings</div>
+      <div class="ps-btn" style="left:165px;top:828px">
+        <svg viewBox="0 0 42 42"><path d="M33 21 A12 12 0 1 1 29 12" fill="none" stroke="#fff" stroke-width="4"/><polygon points="26,4 36,12 26,18" fill="#fff"/></svg>
+      </div>
+      <div class="t" style="left:168px;top:893px;font-size:14px">Refresh</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // Fixed 1672px canvas, CSS-zoomed to the content width (same approach as 保全情報).
+  var page = document.querySelector('.ps-page');
+  var canvas = document.getElementById('psCanvas');
+  function fit(){
+    var w = page.clientWidth;
+    if (!w) return;
+    canvas.style.zoom = String(w / 1672);
+    window.dispatchEvent(new Event('resize'));
+  }
+  fit();
+  window.addEventListener('load', fit);
+  setTimeout(fit, 300);
+
+  // Every "Produced" counter starts at its CSV value and counts up by one
+  // every produced_interval_sec (2s), in step with the pallets moving one cell.
+  var counters = document.querySelectorAll('.ps-produced');
+  var intervalMs = (parseFloat({{ ps.meta.produced_interval_sec|default('2')|tojson }}) || 2) * 1000;
+  var ticks = 0;
+  setInterval(function(){
+    ticks += 1;
+    counters.forEach(function(n){ n.textContent = String((parseInt(n.getAttribute('data-start'), 10) || 0) + ticks); });
+  }, intervalMs);
+})();
+</script>
+{% endblock %}

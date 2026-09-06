@@ -823,3 +823,252 @@ html body .app-shell .step-list > div > span {
 .ae-chat-input{padding:12px 16px;border-top:1px solid #23272e}
 .ae-chat-input input{width:100%;background:#0c0e12;border:1px solid #2b313a;color:#e6ebf2;padding:10px 12px;font:inherit;font-size:12px}
 .ae-chat-note{padding:0 16px 14px;font-size:9.5px;color:#5f6873;line-height:1.5}
+
+/* ================================================================
+   New: 保全 > 保全情報 — 1:1 reproduction of the 高岡電池工場
+   CCRダッシュボード「保全情報」reference. The dashboard is authored on
+   a fixed 1450×1086 canvas (.mi-canvas, every size in px straight
+   from the reference) and CSS-zoomed to the width available next to
+   the toggleable AI chat panel, so proportions never drift.
+   ================================================================ */
+.mi-page{background:#000;margin:-28px;padding:0}
+.mi-body{display:flex;align-items:flex-start}
+.mi-body.ai-hidden .mi-ai-panel{display:none}
+.mi-main{flex:1;min-width:0;overflow:hidden}
+.mi-canvas{width:1450px;height:1086px;position:relative;background:#000;color:#fff;overflow:hidden;
+  font-family:"Noto Sans JP","Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",Meiryo,sans-serif;font-weight:500;line-height:1.2}
+.mi-canvas *{box-sizing:border-box}
+.mi-ai-toggle{margin-left:14px;background:#101620;border:1px solid #2c3646;color:#8db8ff;font-size:12px;font-weight:700;padding:5px 10px;cursor:pointer;vertical-align:middle;font-family:inherit}
+.mi-ai-toggle:hover{border-color:#3b6fbf}
+.mi-ai-panel{width:400px;flex:0 0 400px;display:flex;flex-direction:column;margin:14px 14px 14px 0;min-height:0;max-height:none;overflow:hidden}
+
+/* header */
+.mi-head{position:absolute;left:25px;right:38px;top:0;height:74px;display:flex;align-items:center;white-space:nowrap}
+.mi-head .fac{font-size:30px;font-weight:700}
+.mi-head .ttl{font-size:30px;font-weight:700;margin-left:22px}
+.mi-head .sub{font-size:21px;font-weight:500;margin-left:30px}
+.mi-stripes{width:132px;height:28px;margin-left:96px;background:repeating-linear-gradient(115deg,#e2231f 0 11px,#000 11px 20px);clip-path:polygon(16px 0,100% 0,calc(100% - 16px) 100%,0 100%)}
+.mi-head .line{font-size:30px;font-weight:700;color:#1e8fff;margin-left:34px;letter-spacing:.5px}
+.mi-head .vsep{width:1px;height:38px;background:#7a7a7a;margin:0 18px 0 30px}
+.mi-head .date{font-size:33px;font-weight:600;letter-spacing:.3px}
+.mi-head .shift{font-size:23px;font-weight:600;margin-left:16px}
+.mi-head .auto{margin-left:auto;font-size:15px;font-weight:500;display:flex;align-items:center;gap:7px}
+.mi-head .auto svg{width:12px;height:12px}
+
+/* KPI row */
+.mi-kpis{position:absolute;left:15px;top:72px;width:1420px;height:196px;display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.mi-kpi{border:1px solid #4a4a4a;background:#000;text-align:center;padding-top:14px}
+.mi-kpi .lbl{height:26px;line-height:26px;font-size:23px;font-weight:700;color:#fff}
+.mi-kpi .val{height:72px;line-height:72px;font-size:66px;font-weight:700;color:#5bd42c;letter-spacing:-1px;white-space:nowrap}
+.mi-kpi .val small{font-size:30px;font-weight:700;margin-left:4px}
+.mi-kpi .sep{margin:2px 20px 0;border-top:2px dotted #555}
+.mi-kpi .rows{padding:4px 22px 0 22px}
+.mi-kpi .rows div{height:34px;display:flex;align-items:center;font-size:19px;font-weight:500;color:#fff}
+.mi-kpi .rows div span:first-child{width:78px;text-align:left}
+.mi-kpi .rows div span:nth-child(2){flex:1;text-align:right;padding-right:22px}
+.mi-kpi .rows svg{width:22px;height:22px;flex:0 0 22px}
+.mi-kpi.red{background:#c2201b;border-color:#d7332d}
+.mi-kpi.red .val{color:#fff}
+.mi-kpi.red .sep{border-color:#e46a66}
+.mi-kpi.neutral .lbl,.mi-kpi.neutral .val{color:#5bd42c}
+.mi-kpi.amber{background:#f5a300;border-color:#f5a300}
+.mi-kpi.amber .lbl,.mi-kpi.amber .val,.mi-kpi.amber .rows div{color:#101010}
+.mi-kpi.amber .sep{border-color:rgba(0,0,0,.28)}
+.mi-kpi.amber .rows div span:first-child{width:auto}
+.mi-kpi.amber .rows div span:nth-child(2){padding-right:0}
+
+/* mid row: worst-3 tables + status summary */
+.mi-mid{position:absolute;left:15px;top:282px;width:1420px;height:233px;display:grid;grid-template-columns:700px 710px;gap:10px}
+.mi-panel{border:1px solid #4a4a4a;background:#000;position:relative}
+.mi-panel .ttl{position:absolute;top:8px;font-size:20px;font-weight:700;line-height:28px;white-space:nowrap}
+.mi-tables{position:absolute;left:10px;top:42px;display:flex;gap:10px}
+.mi-tbl{border-collapse:collapse;width:335px;table-layout:fixed;font-size:16px;font-weight:500}
+.mi-tbl th{height:34px;background:#141414;color:#fff;font-size:15px;font-weight:500;border:1px solid #6d6d6d;text-align:center;padding:0}
+.mi-tbl td{height:50px;border:1px solid #6d6d6d;text-align:center;color:#fff;padding:0;white-space:nowrap}
+.mi-tbl td.proc{text-align:left;padding-left:8px;overflow:hidden}
+.mi-tbl td.good{color:#5bd42c}
+.mi-tbl tr.critical td{background:#b3201b}
+.mi-tbl tr.warn td{background:#d38f00}
+.mi-tbl td svg{width:26px;height:26px;vertical-align:middle}
+.mi-status{position:absolute;left:13px;top:46px;display:grid;grid-template-columns:repeat(4,160px);gap:14px}
+.mi-scard{height:176px;border:2px solid;text-align:center;padding-top:18px;position:relative;background:#000}
+.mi-scard .t{font-size:18px;font-weight:700;line-height:1;white-space:nowrap}
+.mi-scard .n{margin-top:18px;display:flex;align-items:center;justify-content:center;gap:9px}
+.mi-scard .n svg{width:44px;height:44px;flex:0 0 44px}
+.mi-scard .n b{font-size:46px;font-weight:700;color:#fff;line-height:1;letter-spacing:-1px}
+.mi-scard .n span{font-size:18px;color:#fff;font-weight:500;align-self:flex-end;padding-bottom:4px}
+.mi-scard .lnk{position:absolute;left:0;right:0;bottom:16px;font-size:17px;font-weight:700}
+.mi-scard.critical{border-color:#e8322a;color:#ff3b30}
+.mi-scard.warning{border-color:#f5b400;color:#f5b400}
+.mi-scard.normal{border-color:#3fc41c;color:#3fc41c}
+.mi-scard.offline{border-color:#8393a5;color:#b4c0cc}
+
+/* lower row: trend chart + score-trend columns */
+.mi-low{position:absolute;left:15px;top:528px;width:1420px;height:342px;display:grid;grid-template-columns:613px 795px;gap:12px}
+.mi-legend{position:absolute;left:28px;top:52px;display:flex;align-items:center;gap:24px;font-size:15px;font-weight:500;white-space:nowrap}
+.mi-legend span{display:flex;align-items:center;gap:8px}
+.mi-legend svg{height:16px}
+.mi-trend{position:absolute;left:0;top:80px;width:613px;height:262px}
+.mi-trend svg,.mi-mini svg{display:block;font-family:inherit}
+.mi-more{position:absolute;right:18px;top:14px;font-size:13px;color:#1e8fff;font-weight:500}
+.mi-cols{position:absolute;left:0;top:48px;width:795px;height:293px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
+.mi-col{border-left:1px solid #3d3d3d;padding:14px 5px 0 10px;overflow:hidden;min-width:0}
+.mi-col:first-child{border-left:0}
+.mi-col .h{display:flex;justify-content:space-between;align-items:center;white-space:nowrap}
+.mi-col .h b{font-size:12.5px;font-weight:700;letter-spacing:-.3px}
+.mi-col .h i{font-style:normal;font-size:8px;font-weight:700;padding:2px 2px;border:1px solid;line-height:1;margin-left:3px}
+.mi-col.high .h i{color:#ff3b30;border-color:#ff3b30}
+.mi-col.mid .h i{color:#f5b400;border-color:#f5b400}
+.mi-col.low .h i{color:#3fc41c;border-color:#3fc41c}
+.mi-col .l{margin-top:16px;font-size:13px;color:#d0d0d0}
+.mi-col .s{margin-top:8px;font-size:28px;font-weight:700;line-height:1}
+.mi-col .s span{font-size:14px;font-weight:500;color:#d0d0d0;margin-left:4px}
+.mi-mini{margin-top:8px;width:172px;height:152px}
+
+/* AI 提案 */
+.mi-ai{position:absolute;left:15px;top:882px;width:1420px;height:168px;border:1px solid #4a4a4a;background:#000;display:flex;align-items:stretch}
+.mi-ai .badge{width:350px;flex:0 0 350px;display:flex;align-items:center;justify-content:center;gap:24px;border-right:1px solid #4a4a4a}
+.mi-ai .badge svg{width:110px;height:110px}
+.mi-ai .badge .t{color:#2f8fff;font-size:30px;font-weight:700;line-height:1;text-align:center}
+.mi-ai .badge .t small{display:block;font-size:14px;font-weight:500;margin-top:12px;color:#2f8fff}
+.mi-ai .list{flex:1;padding-left:22px;display:flex;flex-direction:column;justify-content:center;gap:14px}
+.mi-ai .row{display:grid;grid-template-columns:34px 225px 230px 162px 1fr;align-items:center;font-size:21px;font-weight:500;color:#fff;white-space:nowrap}
+.mi-ai .row svg{width:22px;height:22px}
+
+/* ================================================================
+   New: 生産状況 > 生産状況 — conveyor line-map production status
+   screen, 1:1 reproduction on a fixed 1672×941 canvas (SVG map +
+   HTML sidebar), CSS-zoomed to the content width.
+   ================================================================ */
+.ps-page{background:#000;margin:-28px;padding:0;overflow:hidden}
+.ps-canvas{width:1672px;height:941px;position:relative;background:#000;color:#fff;overflow:hidden;font-family:"Segoe UI",Arial,Helvetica,"Noto Sans JP",sans-serif;font-weight:700;line-height:1.1}
+.ps-canvas *{box-sizing:border-box}
+.ps-map{position:absolute;left:0;top:0;width:1422px;height:941px}
+.ps-map svg{display:block;width:1422px;height:941px;font-family:inherit}
+.ps-hl{position:absolute;left:0;width:1672px;height:0;border-top:1px solid #c8c8c8}
+.ps-side{position:absolute;left:1422px;top:0;width:250px;height:941px;border-left:2px solid #d8d8d8}
+.ps-side .t{position:absolute;white-space:nowrap}
+.ps-side .big{font-size:31px;font-weight:700}
+.ps-side .lbl{font-size:17px;font-weight:600}
+.ps-side .num{font-size:26px;font-weight:700}
+.ps-side .hr{position:absolute;left:8px;right:8px;height:0;border-top:1px solid #6a6a6a}
+.ps-bar{position:absolute;border:2px solid #fff;background:#000}
+.ps-bar i{position:absolute;left:0;top:0;bottom:0;display:block}
+.ps-bar .mark{position:absolute;top:0;bottom:0;width:2px;background:#fff}
+.ps-side .red{color:#f52a2f}
+.ps-side .ico{position:absolute}
+.ps-side .ico svg{display:block}
+.ps-block{position:absolute;display:block;background:#000}
+.ps-btn{position:absolute;width:62px;height:62px;border:2px solid #fff;display:grid;place-items:center}
+.ps-btn svg{width:42px;height:42px;display:block}
+.ps-btn.blue{border-color:#39a9ff}
+.ps-circle{position:absolute;width:30px;height:30px;border:2px solid #fff;display:grid;place-items:center}
+.ps-circle.blue{background:#1e9bff;border-color:#1e9bff}
+.ps-circle svg{width:18px;height:18px;display:block}
+.ps-tiny{position:absolute;width:22px;height:22px}
+.ps-tiny svg{width:22px;height:22px;display:block}
+.ps-map .ps-flow{animation:ps-flow 4s steps(2,end) infinite}
+@keyframes ps-flow{from{stroke-dashoffset:-2.5}to{stroke-dashoffset:-42.5}}
+
+/* 保全情報2 mascot (こひにゃん): sits right of the AI toggle in the top bar,
+   with a speech bubble; also used as the assistant's chat avatar */
+.mi-mascot{display:inline-flex;align-items:center;gap:12px;margin-left:16px;vertical-align:middle;cursor:pointer;user-select:none}
+.mi-mascot img{height:52px;width:auto;display:block;transition:transform .15s}
+.mi-mascot:hover img{transform:scale(1.06)}
+.mi-bubble{position:relative;background:#fff;color:#111;font-size:12px;font-weight:700;line-height:1.3;padding:7px 11px;border:2px solid #2b2b2b;white-space:nowrap}
+.mi-bubble::before{content:"";position:absolute;left:-11px;top:50%;margin-top:-7px;border:7px solid transparent;border-right-color:#2b2b2b;border-left:0}
+.mi-bubble::after{content:"";position:absolute;left:-8px;top:50%;margin-top:-6px;border:6px solid transparent;border-right-color:#fff;border-left:0}
+.nr-chat-avatar.mascot{background:#fff;overflow:hidden;padding:0}
+.nr-chat-avatar.mascot img{width:100%;height:100%;object-fit:cover;display:block}
+
+/* ================================================================
+   New: 設備監視 > ナットランナーPU-01（2） — Factory Guardian 設備詳細
+   (ポンプユニット PU-01) reproduced 1:1 on a fixed 1672×941 canvas
+   (own top bar + sidebar + 6 panels + AI chat), CSS-zoomed to fit.
+   ================================================================ */
+.fg-page{background:#000;margin:-28px;padding:0;overflow:hidden}
+.fg-canvas{width:1494px;height:891px;position:relative;background:#000;color:#fff;overflow:hidden;font-family:"Noto Sans JP","Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",Meiryo,sans-serif;font-weight:500;line-height:1.3}
+.fg-canvas *{box-sizing:border-box}
+.fg-canvas svg{display:block}
+/* content-only view: the Factory Guardian top bar / sidebar were removed, so the
+   original 1672×941 coordinates are shifted up-left into a 1494×891 canvas */
+.fg-shift{position:absolute;left:-178px;top:-50px;width:1672px;height:941px}
+.fg-top{position:absolute;left:0;top:0;width:1672px;height:50px;background:#0b0b0b;border-bottom:1px solid #2a2a2a;display:flex;align-items:center}
+.fg-top .brand{font-size:21px;font-weight:700;margin-left:18px;letter-spacing:.2px}
+.fg-top .crumb{margin-left:44px;font-size:15px;color:#d8d8d8;display:flex;align-items:center;gap:12px}
+.fg-top .crumb svg{width:8px;height:12px}
+.fg-top .right{margin-left:auto;display:flex;align-items:center;height:100%;padding-right:12px}
+.fg-top .right>span{display:flex;align-items:center;gap:8px;font-size:15px;color:#ececec;padding:0 18px;height:28px;border-left:1px solid #3a3a3a;white-space:nowrap}
+.fg-top .right>span:first-child{border-left:0}
+.fg-top .right svg{width:18px;height:18px}
+.fg-top .bell{position:relative}
+.fg-top .bell svg.n{position:absolute;top:-6px;right:6px;width:16px;height:16px}
+.fg-side{position:absolute;left:0;top:50px;width:178px;height:891px;background:#0f0f0f;border-right:1px solid #2a2a2a;padding-top:10px}
+.fg-nav{display:flex;align-items:center;gap:10px;height:52px;margin:1px 8px 1px 0;padding:0 12px;font-size:15px;font-weight:500;color:#f2f2f2;white-space:nowrap}
+.fg-nav.active{background:#2a3140}
+.fg-nav svg{width:20px;height:20px;flex:0 0 20px}
+.fg-nav .badge{margin-left:4px;display:grid;place-items:center;width:20px;height:20px}
+.fg-nav .badge svg{width:20px;height:20px}
+.fg-head{position:absolute;left:178px;top:50px;width:1494px;height:77px;border-bottom:1px solid #2a2a2a}
+.fg-head .name{position:absolute;left:41px;top:10px;display:flex;align-items:center;gap:10px;white-space:nowrap}
+.fg-head .name svg{width:16px;height:16px}
+.fg-head .name b{font-size:28px;font-weight:700}
+.fg-head .tag{background:#3a3a3a;color:#fff;font-size:14px;font-weight:500;padding:5px 12px;margin-left:8px}
+.fg-head .sub{position:absolute;left:69px;top:47px;font-size:14px;color:#b4b4b4;white-space:nowrap}
+.fg-tabs{position:absolute;left:487px;top:42px;display:flex;gap:12px;font-size:16px;white-space:nowrap}
+.fg-tabs span{padding:0 20px 9px;color:#d4d4d4;border-bottom:3px solid transparent}
+.fg-tabs span.active{color:#4da3ff;border-color:#4da3ff}
+.fg-panel{position:absolute;background:#0d0d0d;border:1px solid #2a2a2a}
+.fg-panel .ttl{position:absolute;left:16px;top:13px;font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.fg-panel .ttl svg{width:20px;height:20px}
+.fg-a .score{position:absolute;left:22px;top:60px;display:flex;align-items:baseline;gap:6px}
+.fg-a .score b{font-size:40px;font-weight:700;color:#e5322d;line-height:1}
+.fg-a .score span{font-size:16px;color:#d0d0d0}
+.fg-a .lvl{position:absolute;right:22px;top:70px;background:#7a1d1d;color:#ff9b93;font-size:14px;font-weight:500;padding:4px 14px}
+.fg-a .thr{position:absolute;left:22px;top:110px;font-size:13px;color:#c4c4c4}
+.fg-a .chart{position:absolute;left:8px;top:136px}
+.fg-b .row{position:absolute;left:14px;right:2px;display:flex;font-size:14px;line-height:1.35}
+.fg-b .row .k{width:144px;color:#cfcfcf;flex:0 0 144px}
+.fg-b .row .v{color:#fff;white-space:pre;font-size:13.5px;display:flex;align-items:center;gap:6px}
+.fg-b .row .v svg{width:14px;height:14px}
+.fg-b .btn{position:absolute;left:138px;top:235px;width:123px;height:30px;border:1px solid #3b6fb8;color:#6db3ff;background:#0f1a2a;font-size:14px;display:grid;place-items:center}
+.fg-c .stage{position:absolute;top:60px;width:110px;margin-left:-55px;text-align:center;font-size:13px;color:#e6e6e6;white-space:nowrap}
+.fg-c .stage svg{display:block;margin:8px auto 0;width:18px;height:18px}
+.fg-c .stage.critical svg{width:20px;height:20px;margin-top:6px}
+.fg-c .art{position:absolute;left:25px;top:96px}
+.fg-c .art-img{position:absolute;left:12px;top:46px;width:401px;height:auto;display:block}
+.fg-c .legend{position:absolute;left:35px;top:230px;display:flex;gap:34px;font-size:14px;color:#e6e6e6;white-space:nowrap}
+.fg-c .legend span{display:flex;align-items:center;gap:9px}
+.fg-c .legend i{width:14px;height:14px;display:inline-block}
+.fg-d .period{position:absolute;left:828px;top:16px;font-size:14px;color:#cfcfcf}
+.fg-d .select{position:absolute;left:871px;top:9px;width:169px;height:26px;background:#151515;border:1px solid #3a3a3a;font-size:14px;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 12px 0 14px}
+.fg-d .select svg{width:12px;height:8px}
+.fg-d .legend{position:absolute;left:40px;top:52px;display:flex;gap:26px;font-size:13px;color:#e6e6e6;white-space:nowrap;z-index:2}
+.fg-d .legend span{display:flex;align-items:center;gap:8px}
+.fg-d .legend i{width:16px;height:3px;display:inline-block}
+.fg-d .raxis{position:absolute;left:1021px;top:52px;font-size:13px;color:#cfcfcf}
+.fg-d .chart{position:absolute;left:0;top:58px}
+.fg-e .chart,.fg-f .chart{position:absolute;left:0;top:40px}
+.fg-ai .reset{position:absolute;right:6px;top:13px;width:68px;height:24px;border:1px solid #5a5a5a;background:#1a1a1a;color:#fff;font-size:13px;display:grid;place-items:center;cursor:pointer;font-family:inherit}
+.fg-chat{position:absolute;left:0;right:0;top:48px;bottom:98px;overflow-y:auto;padding:0 12px 4px 14px;display:flex;flex-direction:column;gap:5px}
+.fg-msg{display:flex;flex-direction:column}
+.fg-msg .who{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#d6d6d6}
+.fg-msg .who svg{width:22px;height:22px}
+.fg-msg .bubble{margin:4px 0 0 30px;padding:6px 9px;font-size:12.2px;line-height:1.5;color:#f0f0f0;white-space:pre-wrap}
+.fg-msg.user .bubble{background:#2a2a2a}
+.fg-msg.ai .bubble{background:#161616;border:1px solid #2f2f2f}
+.fg-msg .cbox{margin:4px 0 0 30px;background:#0c0c0c;border:1px solid #2f2f2f;padding:5px 6px 1px}
+.fg-msg .cbox .ct{font-size:12px;color:#e0e0e0;margin-bottom:2px}
+.fg-input{position:absolute;left:15px;bottom:36px;width:290px;height:38px;background:#161616;border:1px solid #3a3a3a;color:#fff;font-size:14px;padding:0 12px;font-family:inherit}
+.fg-input::placeholder{color:#8a8a8a}
+.fg-send{position:absolute;right:6px;bottom:36px;width:65px;height:38px;background:#2f7fe0;color:#fff;border:0;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
+.fg-note{position:absolute;left:15px;bottom:14px;font-size:11px;color:#c0c0c0;white-space:nowrap}
+.fg-hist-wrap{position:absolute;left:14px;right:14px;top:42px;bottom:12px;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:#4a4a4a #111}
+.fg-hist-wrap::-webkit-scrollbar{width:7px}
+.fg-hist-wrap::-webkit-scrollbar-track{background:#111}
+.fg-hist-wrap::-webkit-scrollbar-thumb{background:#4a4a4a}
+.fg-hist{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;table-layout:fixed}
+.fg-hist th{position:sticky;top:0;z-index:1;height:28px;background:#1a1a1a;color:#d8d8d8;font-weight:700;text-align:left;padding:0 8px;border-bottom:1px solid #3a3a3a}
+.fg-hist td{padding:4px 8px;color:#f0f0f0;border-bottom:1px solid #262626;line-height:1.35;vertical-align:middle;word-break:break-all}
+.fg-hist th:first-child,.fg-hist td:first-child{width:88px}
+.fg-hist th:nth-child(2),.fg-hist td:nth-child(2){width:196px}

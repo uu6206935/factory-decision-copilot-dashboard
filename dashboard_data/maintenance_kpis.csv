@@ -1,0 +1,5 @@
+﻿key,label,value,unit,day_delta,week_delta,tier
+w_rate,W 稼働率,98.1,%,+0.2,+0.3,good
+t_rate,T 稼働率,99.8,%,+0.1,+0.2,good
+k_rate,K 稼働率,94.3,%,-0.6,-1.2,critical
+line_stop,ライン停止時間,5,M,-2,-3,neutral

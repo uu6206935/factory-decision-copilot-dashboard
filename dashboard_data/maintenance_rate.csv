@@ -1,0 +1,10 @@
+﻿key,value
+label,台当り異常件数
+value,1.88
+unit,%
+rework_label,手直し総数
+rework_total,"1,193"
+rework_unit,件
+production_label,生産台数
+production_total,"63,486"
+production_unit,台

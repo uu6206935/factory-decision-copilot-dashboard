@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+{% block title %}ナットランナーPU-01 · {{ app_name }}{% endblock %}
+{% block page_title %}ナットランナーPU-01{% endblock %}
+{% block content %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap">
+{% macro nav_icon(kind) %}
+{% if kind == 'home' %}<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M2.5 9.5 L10 3 L17.5 9.5 V17.5 H12 V12.5 H8 V17.5 H2.5 Z" fill="#fff"/></svg>
+{% elif kind == 'monitor' %}<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M2 15 L7 8 L10.5 12 L14 5 L18 9" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><path d="M2 17.5 H18" stroke="#fff" stroke-width="1.6"/></svg>
+{% elif kind == 'bell' %}<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 14 V9 A5 5 0 0 1 15 9 V14 L16.5 16 H3.5 Z" fill="#fff"/><rect x="8.2" y="16.5" width="3.6" height="2" fill="#fff"/></svg>
+{% elif kind == 'list' %}<svg viewBox="0 0 20 20" aria-hidden="true"><g fill="#fff"><rect x="2" y="3.5" width="3" height="3"/><rect x="7" y="4" width="11" height="2"/><rect x="2" y="8.5" width="3" height="3"/><rect x="7" y="9" width="11" height="2"/><rect x="2" y="13.5" width="3" height="3"/><rect x="7" y="14" width="11" height="2"/></g></svg>
+{% elif kind == 'report' %}<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 2 H12 L16 6 V18 H4 Z" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M7 9 H13 M7 12 H13 M7 15 H11" stroke="#fff" stroke-width="1.6"/></svg>
+{% else %}<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="3" fill="none" stroke="#fff" stroke-width="2"/><g stroke="#fff" stroke-width="2.2" stroke-linecap="round"><line x1="10" y1="2" x2="10" y2="4.5"/><line x1="10" y1="15.5" x2="10" y2="18"/><line x1="2" y1="10" x2="4.5" y2="10"/><line x1="15.5" y1="10" x2="18" y2="10"/><line x1="4.3" y1="4.3" x2="6.1" y2="6.1"/><line x1="13.9" y1="13.9" x2="15.7" y2="15.7"/><line x1="15.7" y1="4.3" x2="13.9" y2="6.1"/><line x1="6.1" y1="13.9" x2="4.3" y2="15.7"/></g></svg>
+{% endif %}
+{% endmacro %}
+{% macro state_dot(state) %}
+{% if state == 'critical' %}<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="#e5322d"/><path d="M10 5 V11.5" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/><circle cx="10" cy="14.6" r="1.4" fill="#fff"/></svg>
+{% elif state == 'warning' %}<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="#f5c400"/><path d="M10 5 V11.5" stroke="#000" stroke-width="2.4" stroke-linecap="round"/><circle cx="10" cy="14.6" r="1.4" fill="#000"/></svg>
+{% else %}<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="#38c65a"/><path d="M6 10.2 L8.8 13 L14 7.5" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+{% endif %}
+{% endmacro %}
+{% macro user_avatar() %}<svg viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="11" fill="#e6e6e6"/><circle cx="11" cy="8.5" r="3.6" fill="#2a2a2a"/><path d="M4 18.5 C5 13.5 17 13.5 18 18.5 Z" fill="#2a2a2a"/></svg>{% endmacro %}
+{% macro ai_avatar() %}<svg viewBox="0 0 22 22" aria-hidden="true"><rect x="1" y="1" width="20" height="20" rx="4" fill="#2f7fe0"/><rect x="5" y="7" width="12" height="9" rx="2" fill="none" stroke="#fff" stroke-width="1.6"/><circle cx="8.8" cy="11.5" r="1.3" fill="#fff"/><circle cx="13.2" cy="11.5" r="1.3" fill="#fff"/><path d="M11 4.5 V7" stroke="#fff" stroke-width="1.6"/><circle cx="11" cy="4" r="1.2" fill="#fff"/></svg>{% endmacro %}
+
+<div class="fg-page">
+  <div class="fg-canvas" id="fgCanvas">
+
+    <div class="fg-shift">
+    <div class="fg-head">
+      <div class="name"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="8" fill="#38c65a"/></svg><b>{{ pu.meta.equipment_name }}</b><span class="tag">{{ pu.meta.tag }}</span></div>
+      <div class="sub">{{ pu.meta.area_line }}</div>
+      <div class="fg-tabs">{% for t in pu.tabs %}<span class="{% if t == pu.meta.active_tab %}active{% endif %}">{{ t }}</span>{% endfor %}</div>
+    </div>
+
+    <!-- 異常スコア -->
+    <div class="fg-panel fg-a" style="left:192px;top:135px;width:340px;height:270px">
+      <div class="ttl"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="#e5322d"/><path d="M10 5 V11.5" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/><circle cx="10" cy="14.6" r="1.4" fill="#fff"/></svg>異常スコア（Autoencoder）</div>
+      <div class="score">{% if pu.score_grade %}<b>{{ pu.score_grade }}</b>{% else %}<b>{{ pu.latest_score }}</b><span>/100</span>{% endif %}</div>
+      <div class="lvl">{{ pu.alert_info.latest_alert_level }}</div>
+      <div class="thr">閾値：{{ pu.threshold }}</div>
+      <div class="chart" id="fgScoreMini"></div>
+    </div>
+
+    <!-- 最新アラート情報 -->
+    <div class="fg-panel fg-b" style="left:542px;top:135px;width:273px;height:270px">
+      <div class="row" style="top:18px"><span class="k">最新アラート時刻</span><span class="v"><svg viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="6" fill="#e5322d"/></svg>{{ pu.alert_info.latest_alert_level }}</span></div>
+      <div class="row" style="top:53px"><span class="k">最新アラート検出時刻</span><span class="v">{{ pu.alert_info.latest_alert_time }}</span></div>
+      <div class="row" style="top:88px"><span class="k">アラート判定</span><span class="v">{{ pu.alert_info.alert_verdict }}</span></div>
+      <div class="row" style="top:123px"><span class="k">検知継続</span><span class="v">{{ pu.alert_info.detection_streak }}</span></div>
+      <div class="row" style="top:158px"><span class="k">モデル</span><span class="v">{{ pu.alert_info.model_name }}</span></div>
+      <div class="row" style="top:192px"><span class="k">学習データ期間</span><span class="v">{{ pu.alert_info.training_period }}</span></div>
+      <div class="btn">詳細を表示</div>
+    </div>
+
+    <!-- 設備構成概要 -->
+    <div class="fg-panel fg-c" style="left:825px;top:135px;width:425px;height:270px">
+      <div class="ttl">設備構成概要</div>
+      <img class="art-img" src="{{ pu.meta.structure_image }}" alt="設備構成断面図">
+      <div class="legend"><span><i style="background:#38c65a"></i>正常</span><span><i style="background:#f5c400"></i>注意</span><span><i style="background:#e5322d"></i>異常</span><span><i style="background:#9a9a9a"></i>データなし</span></div>
+    </div>
+
+    <!-- 主要センサーデータと異常スコアの推移 -->
+    <div class="fg-panel fg-d" style="left:192px;top:415px;width:1058px;height:245px">
+      <div class="ttl">主要センサーデータと異常スコアの推移</div>
+      <div class="period">期間</div>
+      <div class="select">{{ pu.meta.period }}<svg viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1.5 L6 6.5 L11 1.5" fill="none" stroke="#fff" stroke-width="1.6"/></svg></div>
+      <div class="legend">{% for lg in pu.legend %}<span><i style="background:{{ lg.color }}"></i>{{ lg.label }}</span>{% endfor %}</div>
+      <div class="raxis">{{ (pu.legend|selectattr('axis', 'equalto', 'right')|map(attribute='label')|list)[0] if pu.legend else '' }}</div>
+      <div class="chart" id="fgSensor"></div>
+    </div>
+
+    <!-- 再構成誤差 -->
+    <div class="fg-panel fg-e" style="left:192px;top:670px;width:488px;height:255px">
+      <div class="ttl">生データ</div>
+      <div class="chart" id="fgRaw"></div>
+    </div>
+
+    <!-- 異常スコアの分布 -->
+    <div class="fg-panel fg-f" style="left:690px;top:670px;width:560px;height:255px">
+      <div class="ttl">設備異常履歴</div>
+      <div class="fg-hist-wrap">
+        <table class="fg-hist">
+          <thead><tr><th>日時</th><th>原因</th><th>対策</th></tr></thead>
+          <tbody>
+            {% for h in pu.history %}<tr><td>{{ h.date }}</td><td>{{ h.cause }}</td><td>{{ h.action }}</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- AIアシスタント -->
+    <div class="fg-panel fg-ai" style="left:1265px;top:135px;width:385px;height:790px">
+      <div class="ttl">AIアシスタント（生成AI）</div>
+      <button type="button" class="reset" id="fgChatReset">リセット</button>
+      <div class="fg-chat" id="fgChatBody">
+        {% for m in pu.chat %}
+        {% if m.kind == 'chart' %}
+        <div class="fg-msg ai"><div class="cbox"><div class="ct">{{ m.text }}</div><div id="fgChatMini"></div></div></div>
+        {% else %}
+        <div class="fg-msg {{ m.sender }}">
+          <div class="who">{% if m.sender == 'user' %}{{ user_avatar() }}<span>あなた</span>{% else %}{{ ai_avatar() }}<span>AIアシスタント</span>{% endif %}<span style="color:#9d9d9d">{{ m.time }}</span></div>
+          <div class="bubble">{{ m.text }}</div>
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
+      <input type="text" class="fg-input" id="fgChatInput" placeholder="質問を入力してください。">
+      <button type="button" class="fg-send" id="fgChatSend">送信</button>
+      <div class="fg-note">* 生成AIの回答は参考情報であり、正確性を保証するものではありません。</div>
+    </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var pu = {{ pu|tojson }};
+  var NS = 'http://www.w3.org/2000/svg';
+  var FONT = "'Noto Sans JP','Hiragino Kaku Gothic ProN','Yu Gothic',Meiryo,sans-serif";
+  function el(tag, attrs, kids){ var n = document.createElementNS(NS, tag); for (var k in attrs) n.setAttribute(k, attrs[k]); (kids || []).forEach(function(c){ n.appendChild(c); }); return n; }
+  function txt(x, y, s, attrs){ var t = el('text', Object.assign({ x: x, y: y, 'font-family': FONT }, attrs || {})); t.textContent = s; return t; }
+  function svgIn(id, W, H){ var s = el('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H }); document.getElementById(id).appendChild(s); return s; }
+  function linePath(vals, x, y){ return vals.map(function(v, i){ return (i ? 'L' : 'M') + x(i).toFixed(1) + ',' + y(v).toFixed(1); }).join(' '); }
+  function gradient(svg, id, color, top, bottom){
+    svg.appendChild(el('defs', {}, [el('linearGradient', { id: id, x1: 0, y1: 0, x2: 0, y2: 1 }, [
+      el('stop', { offset: '0%', 'stop-color': color, 'stop-opacity': top }),
+      el('stop', { offset: '100%', 'stop-color': color, 'stop-opacity': bottom })])]));
+  }
+  var AX = '#d2d2d2', GRID = '#2a2a2a';
+
+  // ---- 異常スコア mini: １軸 (the anomaly-score series of the sensor chart), same 24h range ----
+  (function(){
+    var W = 320, H = 120, X0 = 35, X1 = 315, Y0 = 11, Y1 = 84;
+    var axis1 = (pu.legend[0] && pu.legend[0].key) || 'anomaly_score';
+    var vals = pu.sensors[axis1] || pu.score_mini.values, labels = pu.sensors.labels && pu.sensors.labels.length === vals.length ? pu.sensors.labels : pu.score_mini.labels;
+    // start the mini chart at meta.mini_start (e.g. 05/19 00:00) instead of the full 24h
+    var s0 = labels.indexOf(pu.meta.mini_start || ''); if (s0 < 0) s0 = 0;
+    vals = vals.slice(s0); labels = labels.slice(s0);
+    var n = vals.length;
+    // middle label: the on-the-hour sample closest to the midpoint
+    var mid = Math.floor((n - 1) / 2); while (mid > 0 && !/:00$/.test(labels[mid])) mid--;
+    var x = function(i){ return X0 + (X1 - X0) * i / Math.max(1, n - 1); }, y = function(v){ return Y1 - (Y1 - Y0) * v / 100; };
+    var svg = svgIn('fgScoreMini', W, H);
+    gradient(svg, 'fgG1', '#e5322d', 0.45, 0.02);
+    [100, 50, 0].forEach(function(v){ svg.appendChild(el('line', { x1: X0, x2: X1, y1: y(v), y2: y(v), stroke: GRID, 'stroke-width': 1 })); svg.appendChild(txt(X0 - 8, y(v) + 4, v, { 'text-anchor': 'end', 'font-size': 12, fill: AX })); });
+    var d = linePath(vals, x, y);
+    svg.appendChild(el('path', { d: d + ' L' + x(n - 1).toFixed(1) + ',' + Y1 + ' L' + x(0).toFixed(1) + ',' + Y1 + ' Z', fill: 'url(#fgG1)' }));
+    svg.appendChild(el('path', { d: d, fill: 'none', stroke: '#e5322d', 'stroke-width': 1.8, 'stroke-linejoin': 'round' }));
+    svg.appendChild(el('circle', { cx: x(n - 1), cy: y(vals[n - 1]), r: 3.2, fill: '#e5322d', stroke: '#fff', 'stroke-width': 1.2 }));
+    svg.appendChild(txt(X0, H - 14, labels[0], { 'text-anchor': 'start', 'font-size': 12, fill: AX }));
+    svg.appendChild(txt(x(mid), H - 14, labels[mid], { 'text-anchor': 'middle', 'font-size': 12, fill: AX }));
+    svg.appendChild(txt(X1, H - 14, labels[n - 1], { 'text-anchor': 'end', 'font-size': 12, fill: AX }));
+  })();
+
+  // ---- 主要センサーデータと異常スコアの推移 ----
+  (function(){
+    var W = 1058, H = 190, X0 = 48, X1 = 998, Y0 = 22, Y1 = 152;
+    var labels = pu.sensors.labels, n = labels.length;
+    var x = function(i){ return X0 + (X1 - X0) * i / Math.max(1, n - 1); };
+    // Left-axis domain grows downward if any series dips below 0, so no line is ever clipped at the bottom.
+    var leftMin = 0;
+    pu.legend.forEach(function(lg){ if (lg.axis !== 'right') (pu.sensors[lg.key] || []).forEach(function(v){ if (v < leftMin) leftMin = v; }); });
+    var lo = leftMin < 0 ? Math.floor((leftMin - 2) / 10) * 10 : 0;
+    var hasRight = pu.legend.some(function(lg){ return lg.axis === 'right'; });
+    var yL = function(v){ return Y1 - (Y1 - Y0) * (v - lo) / (100 - lo); }, yR = function(v){ return Y1 - (Y1 - Y0) * v / 150; };
+    var svg = svgIn('fgSensor', W, H);
+    var ticks = [100, 50, 0]; if (lo < 0) ticks.push(lo);
+    ticks.forEach(function(v){ svg.appendChild(el('line', { x1: X0, x2: X1, y1: yL(v), y2: yL(v), stroke: GRID, 'stroke-width': 1 })); svg.appendChild(txt(X0 - 8, yL(v) + 4, v, { 'text-anchor': 'end', 'font-size': 13, fill: AX })); });
+    if (hasRight) [150, 75, 0].forEach(function(v){ svg.appendChild(txt(X1 + 10, yR(v) + 4, v, { 'text-anchor': 'start', 'font-size': 13, fill: AX })); });
+    svg.appendChild(el('line', { x1: X0, x2: X0, y1: Y0, y2: Y1, stroke: '#3a3a3a', 'stroke-width': 1 }));
+    svg.appendChild(el('line', { x1: X1, x2: X1, y1: Y0, y2: Y1, stroke: '#3a3a3a', 'stroke-width': 1 }));
+    var step = Math.round((n - 1) / 6);
+    for (var i = 0; i < n; i += step) svg.appendChild(txt(x(i), H - 12, labels[i], { 'text-anchor': i === 0 ? 'start' : 'middle', 'font-size': 13, fill: AX }));
+    pu.legend.forEach(function(lg){
+      var vals = pu.sensors[lg.key] || [], yf = lg.axis === 'right' ? yR : yL;
+      svg.appendChild(el('path', { d: linePath(vals, x, yf), fill: 'none', stroke: lg.color, 'stroke-width': 1.5, 'stroke-linejoin': 'round' }));
+    });
+    var mi = pu.alert_marker.index, mx = x(mi);
+    svg.appendChild(el('line', { x1: mx, x2: mx, y1: Y0 - 2, y2: Y1, stroke: '#e0e0e0', 'stroke-width': 1.2, 'stroke-dasharray': '5 4' }));
+    var lab = pu.alert_marker.label, bw = lab.length * 13 + 16;
+    svg.appendChild(el('rect', { x: mx - bw / 2, y: 0, width: bw, height: 26, fill: '#c62828' }));
+    svg.appendChild(txt(mx, 18, lab, { 'text-anchor': 'middle', 'font-size': 13, 'font-weight': 500, fill: '#fff' }));
+  })();
+
+  // ---- 生データ: blue / orange point clouds. Y = torque (N·m), X = the same 24h window as
+  //      the sensor chart, labelled at round hours (05/18 12:00 ... 05/19 08:00) ----
+  (function(){
+    var W = 488, H = 215, X0 = 53, X1 = 468, Y0 = 26, Y1 = 170;
+    var svg = svgIn('fgRaw', W, H);
+    var x = function(v){ return X0 + (X1 - X0) * v; }, y = function(v){ return Y1 - (Y1 - Y0) * v; };
+    svg.appendChild(txt(X0 - 9, 13, 'トルク (N·m)', { 'text-anchor': 'start', 'font-size': 12, fill: AX }));
+    [100, 50, 0].forEach(function(v){ svg.appendChild(el('line', { x1: X0, x2: X1, y1: y(v / 100), y2: y(v / 100), stroke: GRID, 'stroke-width': 1 })); svg.appendChild(txt(X0 - 9, y(v / 100) + 4, v, { 'text-anchor': 'end', 'font-size': 13, fill: AX })); });
+    svg.appendChild(el('line', { x1: X0, x2: X0, y1: Y0, y2: Y1, stroke: '#3a3a3a', 'stroke-width': 1 }));
+    var tl = pu.sensors.labels || [], tn = tl.length;
+    ['05/18 12:00', '05/18 16:00', '05/18 20:00', '05/19 00:00', '05/19 04:00', '05/19 08:00'].forEach(function(lab){
+      var i = tl.indexOf(lab); if (i < 0 || tn < 2) return;
+      var tx = x(i / (tn - 1));
+      svg.appendChild(el('line', { x1: tx, x2: tx, y1: Y1, y2: Y1 + 5, stroke: '#6a6a6a', 'stroke-width': 1 }));
+      svg.appendChild(txt(tx, Y1 + 22, lab, { 'text-anchor': 'middle', 'font-size': 11.5, fill: AX }));
+    });
+    var colors = { blue: '#1f6fe6', orange: '#f07a1a' };
+    Object.keys(pu.rawdata || {}).forEach(function(key){
+      (pu.rawdata[key] || []).forEach(function(p){ svg.appendChild(el('circle', { cx: x(p[0]).toFixed(1), cy: y(p[1]).toFixed(1), r: 2.5, fill: colors[key] || '#9a9a9a', opacity: 0.92 })); });
+    });
+  })();
+
+  // ---- AI chat embedded 7-day chart ----
+  (function(){
+    var host = document.getElementById('fgChatMini'); if (!host) return;
+    var W = 318, H = 100, X0 = 36, X1 = 310, Y0 = 8, Y1 = 72;
+    var vals = pu.score_7day.values, labels = pu.score_7day.labels, n = vals.length;
+    var x = function(i){ return X0 + (X1 - X0) * i / Math.max(1, n - 1); }, y = function(v){ return Y1 - (Y1 - Y0) * v / 100; };
+    var svg = svgIn('fgChatMini', W, H);
+    gradient(svg, 'fgG2', '#e5322d', 0.4, 0.02);
+    [100, 50, 0].forEach(function(v){ svg.appendChild(el('line', { x1: X0, x2: X1, y1: y(v), y2: y(v), stroke: GRID, 'stroke-width': 1 })); svg.appendChild(txt(X0 - 7, y(v) + 4, v, { 'text-anchor': 'end', 'font-size': 11, fill: AX })); });
+    var d = linePath(vals, x, y);
+    svg.appendChild(el('path', { d: d + ' L' + x(n - 1).toFixed(1) + ',' + Y1 + ' L' + x(0).toFixed(1) + ',' + Y1 + ' Z', fill: 'url(#fgG2)' }));
+    svg.appendChild(el('path', { d: d, fill: 'none', stroke: '#e5322d', 'stroke-width': 1.6, 'stroke-linejoin': 'round' }));
+    var days = []; labels.forEach(function(l, i){ if (!days.length || days[days.length - 1].l !== l) days.push({ l: l, i: i }); });
+    days.forEach(function(dd, k){ svg.appendChild(txt(x(dd.i) + (k === 0 ? 0 : 10), H - 12, dd.l, { 'text-anchor': k === 0 ? 'start' : 'middle', 'font-size': 11, fill: AX })); });
+  })();
+
+  // ---- fixed 1672px canvas zoomed to the content width ----
+  var page = document.querySelector('.fg-page'), canvas = document.getElementById('fgCanvas');
+  function fit(){ var w = page.clientWidth; if (!w) return; canvas.style.zoom = String(w / 1494); window.dispatchEvent(new Event('resize')); }
+  fit(); window.addEventListener('load', fit); setTimeout(fit, 300);
+
+  // ---- live AI chat (DeepSeek, grounded in pumpunit_*.csv via /api/v1/pumpunit/ask) ----
+  var chatBody = document.getElementById('fgChatBody'), input = document.getElementById('fgChatInput'), sendBtn = document.getElementById('fgChatSend'), resetBtn = document.getElementById('fgChatReset');
+  var USER_AV = {{ user_avatar()|tojson }}, AI_AV = {{ ai_avatar()|tojson }};
+  function addMessage(sender, label, time, text){
+    var wrap = document.createElement('div'); wrap.className = 'fg-msg ' + sender + ' dynamic-msg';
+    var who = document.createElement('div'); who.className = 'who';
+    who.innerHTML = (sender === 'user' ? USER_AV : AI_AV) + '<span>' + label + '</span><span style="color:#9d9d9d">' + time + '</span>';
+    var bubble = document.createElement('div'); bubble.className = 'bubble'; bubble.textContent = text;
+    wrap.appendChild(who); wrap.appendChild(bubble); chatBody.appendChild(wrap); chatBody.scrollTop = chatBody.scrollHeight;
+    return bubble;
+  }
+  function nowTime(){ var d = new Date(), p = function(n){ return String(n).padStart(2, '0'); }; return p(d.getHours()) + ':' + p(d.getMinutes()); }
+  function send(){
+    var q = input.value.trim(); if (!q || sendBtn.disabled) return;
+    input.value = ''; sendBtn.disabled = true;
+    addMessage('user', 'あなた', nowTime(), q);
+    var thinking = addMessage('ai', 'AIアシスタント', nowTime(), '考え中…');
+    fetch('/api/v1/pumpunit/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: q }) })
+      .then(function(r){ return r.json(); }).then(function(data){ thinking.textContent = data.ok ? data.answer : ('⚠ ' + data.error); })
+      .catch(function(){ thinking.textContent = '⚠ 通信エラーが発生しました。しばらくしてから再度お試しください。'; })
+      .finally(function(){ sendBtn.disabled = false; chatBody.scrollTop = chatBody.scrollHeight; });
+  }
+  sendBtn.addEventListener('click', send);
+  input.addEventListener('keydown', function(e){ if (e.key === 'Enter') send(); });
+  resetBtn.addEventListener('click', function(){ chatBody.querySelectorAll('.dynamic-msg').forEach(function(n){ n.remove(); }); });
+})();
+</script>
+{% endblock %}

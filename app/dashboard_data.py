@@ -636,3 +636,300 @@ def autoencoder_ai_ask(question: str) -> dict[str, Any]:
         return {"ok": True, "answer": answer}
     except DeepSeekError as exc:
         return {"ok": False, "error": f"DeepSeekへの問い合わせに失敗しました（{exc}）"}
+
+
+def maintenance_data() -> dict[str, Any]:
+    meta = {r["key"]: r["value"] for r in _read_csv("maintenance_meta.csv")}
+
+    kpis = []
+    for r in _read_csv("maintenance_kpis.csv"):
+        kpis.append({
+            "key": r["key"], "label": r["label"], "value": r["value"], "unit": r["unit"],
+            "day_delta": _ccr_delta(r["tier"], r["day_delta"]),
+            "week_delta": _ccr_delta(r["tier"], r["week_delta"]),
+            "tier": r["tier"],
+        })
+
+    rate_rows = {r["key"]: r["value"] for r in _read_csv("maintenance_rate.csv")}
+    rate = {k: rate_rows.get(k, "") for k in (
+        "label", "value", "unit",
+        "rework_label", "rework_total", "rework_unit",
+        "production_label", "production_total", "production_unit",
+    )}
+
+    worst_anomaly = [
+        {"rank": r["rank"], "process": r["process"], "count": r["count"], "day_delta": _ccr_delta("neutral", r["day_delta"]), "flag": r["flag"]}
+        for r in _read_csv("maintenance_worst_anomaly.csv")
+    ]
+    worst_stoptime = [
+        {"rank": r["rank"], "process": r["process"], "hours": r["hours"], "day_delta": _ccr_delta("neutral", r["day_delta"]), "flag": r["flag"]}
+        for r in _read_csv("maintenance_worst_stoptime.csv")
+    ]
+
+    status_summary = [{"tier": r["tier"], "label": r["label"], "count": r["count"], "link_label": r["link_label"]} for r in _read_csv("maintenance_status_summary.csv")]
+
+    trend_rows = _read_csv("maintenance_trend.csv")
+    trend = {
+        "labels": [r["date"] for r in trend_rows],
+        "total": [_num(r["total"], int) for r in trend_rows],
+        "red": [_num(r["red"], int) for r in trend_rows],
+        "yellow": [_num(r["yellow"], int) for r in trend_rows],
+        "blue": [_num(r["blue"], int) for r in trend_rows],
+        "legend": {r["key"]: r["label"] for r in _read_csv("maintenance_trend_legend.csv")},
+    }
+
+    score_series_rows = _read_csv("maintenance_score_series.csv")
+    series_by_eq: dict[str, dict[str, list]] = {}
+    for r in score_series_rows:
+        s = series_by_eq.setdefault(r["eq_id"], {"labels": [], "values": []})
+        s["labels"].append(r["time"])
+        s["values"].append(_num(r["value"]))
+
+    score_cards = []
+    for r in _read_csv("maintenance_score_cards.csv"):
+        score_cards.append({
+            "eq_id": r["eq_id"], "eq_name": r["eq_name"], "risk": r["risk"], "badge": r["badge"],
+            "score": _num(r["score"], int),
+            "series": series_by_eq.get(r["eq_id"], {"labels": [], "values": []}),
+        })
+
+    ai_tips = [
+        {"color": r["color"], "equipment": r["equipment"], "occurred": r["occurred"], "serial_no": r["serial_no"], "health_score": r["health_score"], "comment": r["comment"]}
+        for r in _read_csv("maintenance_ai_tips.csv")
+    ]
+
+    chat = [{"sender": r["sender"], "time": r["time"], "text": r["text"]} for r in _read_csv("maintenance_ai_chat.csv")]
+
+    return {
+        "meta": meta,
+        "kpis": kpis,
+        "rate": rate,
+        "worst_anomaly": worst_anomaly,
+        "worst_stoptime": worst_stoptime,
+        "status_summary": status_summary,
+        "trend": trend,
+        "score_cards": score_cards,
+        "ai_tips": ai_tips,
+        "chat": chat,
+    }
+
+
+_MAINT_RISK_LABEL = {"high": "高リスク（異常スコア）", "mid": "中リスク（警戒スコア）", "low": "低リスク（正常スコア）"}
+
+
+def _maintenance_context_text(mt: dict[str, Any]) -> str:
+    """Compact Japanese-language summary of every maintenance_*.csv table,
+    used as grounding context for the maintenance AI assistant chat."""
+    meta = mt["meta"]
+    kpi_lines = "\n".join(
+        f"- {k['label']}: {k['value']}{k['unit']}（前日比{k['day_delta']['text']}{k['unit']}／前週比{k['week_delta']['text']}{k['unit']}）"
+        for k in mt["kpis"]
+    )
+
+    rate = mt["rate"]
+    anomaly_lines = "\n".join(f"- {a['rank']}位 {a['process']}: {a['count']}件（前日比{a['day_delta']['text']}）" for a in mt["worst_anomaly"])
+    stoptime_lines = "\n".join(f"- {s['rank']}位 {s['process']}: {s['hours']}時間（前日比{s['day_delta']['text']}）" for s in mt["worst_stoptime"])
+
+    status_lines = "\n".join(f"- {s['label']}: {s['count']}台" for s in mt["status_summary"])
+
+    trend = mt["trend"]
+    legend = trend.get("legend", {})
+    trend_lines = "\n".join(
+        f"- {d}: 合計{t}件（{legend.get('red', '赤')} {r}件／{legend.get('yellow', '黄')} {y}件／{legend.get('blue', '青')} {b}件）"
+        for d, t, r, y, b in zip(trend["labels"], trend["total"], trend["red"], trend["yellow"], trend["blue"])
+    )
+
+    score_lines = "\n".join(
+        f"- {c['eq_id']} {c['eq_name']}: 異常スコア{c['score']}/100（{_MAINT_RISK_LABEL.get(c['risk'], c['risk'])}、5日前 {c['series']['values'][0] if c['series']['values'] else '不明'}→現在 {c['score']}）"
+        for c in mt["score_cards"]
+    )
+
+    tip_lines = "\n".join(
+        f"- {t['equipment']}（発生時刻 {t['occurred']}／結番号 {t['serial_no']}／HealthScore {t['health_score']}）: {t['comment']}"
+        for t in mt["ai_tips"]
+    )
+
+    return f"""【工場】{meta.get('factory_name')} {meta.get('title')}（{meta.get('subtitle')}）／{meta.get('line_name')}
+【日付】{meta.get('report_date')}（{meta.get('shift')}）／{meta.get('auto_refresh_label')}: {meta.get('auto_refresh')}
+
+【稼働KPI】
+{kpi_lines}
+
+【{rate.get('label')}】{rate.get('value')}{rate.get('unit')}（{rate.get('rework_label')} {rate.get('rework_total')}{rate.get('rework_unit')} ／ {rate.get('production_label')} {rate.get('production_total')}{rate.get('production_unit')}）
+
+【異常工程ワースト3（件数）】
+{anomaly_lines}
+
+【設備停止時間ワースト3（時間）】
+{stoptime_lines}
+
+【設備ステータスサマリー】
+{status_lines}
+
+【異常工程ワースト3 推移（件数）】
+{trend_lines}
+
+【主要設備の異常スコアトレンド】
+{score_lines}
+
+【AI提案（過去実績に基づく推奨）】
+{tip_lines}"""
+
+
+def maintenance_ai_ask(question: str) -> dict[str, Any]:
+    if not deepseek_available():
+        return {"ok": False, "error": "DeepSeek APIが設定されていません。.env.local に DEEPSEEK_API_KEY を設定すると回答できるようになります。"}
+
+    mt = maintenance_data()
+    context = _maintenance_context_text(mt) if DEEPSEEK_SEND_STRUCTURED_EVIDENCE else "[保全データの送信は設定で無効化されています]"
+    user_prompt = f"以下は工場の保全情報の実データです。この情報だけを根拠に、質問に日本語で答えてください。\n\n{context}\n\n【質問】\n{question}"
+    try:
+        answer = deepseek_chat(
+            system=(
+                "あなたは工場の保全情報AIアシスタントです。渡された保全データだけを根拠に回答し、"
+                "データにない数値や設備名を創作しないでください。箇条書きを使ってもよいですが、"
+                "レポートのような長文にはせず、チャットの返信として自然な分量（数行〜十数行程度）にまとめてください。"
+                "回答はプレーンテキストで返し、Markdown記法（見出しの # や太字の **）は一切使わないでください。"
+            ),
+            user=user_prompt,
+            thinking=False,
+            reasoning_effort="low",
+            max_tokens=1000,
+            temperature=0.2,
+        )
+        return {"ok": True, "answer": answer}
+    except DeepSeekError as exc:
+        return {"ok": False, "error": f"DeepSeekへの問い合わせに失敗しました（{exc}）"}
+
+
+def production_status_data() -> dict[str, Any]:
+    """生産状況 line-map screen: every station, conveyor track, carry label,
+    indicator badge and sidebar KPI comes from production_status_*.csv."""
+    meta = {r["key"]: r["value"] for r in _read_csv("production_status_meta.csv")}
+    stations = [{
+        "id": r["id"], "label": r["label"], "state": r["state"],
+        "x": _num(r["x"], int), "y": _num(r["y"], int), "w": _num(r["w"], int), "h": _num(r["h"], int),
+        "label_y": _num(r["label_y"], int), "produced": r["produced"], "produced_y": _num(r["produced_y"], int),
+        "car": r["car"] == "1",
+    } for r in _read_csv("production_status_stations.csv")]
+    tracks = [{"id": r["id"], "d": r["d"]} for r in _read_csv("production_status_tracks.csv")]
+    carries = [{
+        "label": r["label"], "x": _num(r["x"], int), "y": _num(r["y"], int), "marker": r["marker"], "count": r["count"],
+        "arrows_y": _num(r["arrows_y"], int), "arrow_dx": _num(r["arrow_dx"], int),
+    } for r in _read_csv("production_status_carries.csv")]
+    indicators = [{
+        "icon": r["icon"], "x": _num(r["x"], int), "y": _num(r["y"], int), "count": r["count"], "count_style": r["count_style"],
+        "label": r["label"], "label_x": _num(r["label_x"], int), "label_y": _num(r["label_y"], int),
+    } for r in _read_csv("production_status_indicators.csv")]
+    lines = [{"x1": _num(r["x1"], int), "y1": _num(r["y1"], int), "x2": _num(r["x2"], int), "y2": _num(r["y2"], int)} for r in _read_csv("production_status_lines.csv")]
+    return {"meta": meta, "stations": stations, "tracks": tracks, "carries": carries, "indicators": indicators, "lines": lines}
+
+
+def maintenance_mascot() -> dict[str, str]:
+    """Mascot (こひにゃん) for 保全情報2: image/avatar paths and speech-bubble text."""
+    return {r["key"]: r["value"] for r in _read_csv("maintenance_mascot.csv")}
+
+
+def pumpunit_detail_data() -> dict[str, Any]:
+    """Factory Guardian 設備詳細 (ポンプユニット PU-01) shown as ナットランナーPU-01（2）."""
+    meta = {r["key"]: r["value"] for r in _read_csv("pumpunit_meta.csv")}
+    nav = [{"label": r["label"], "icon": r["icon"], "active": r["active"] == "1", "badge": r["badge"]} for r in _read_csv("pumpunit_nav.csv")]
+    tabs = [r["label"] for r in _read_csv("pumpunit_tabs.csv")]
+    alert_info = {r["key"]: r["value"] for r in _read_csv("pumpunit_alert_info.csv")}
+    structure = [{"stage": r["stage"], "state": r["state"]} for r in _read_csv("pumpunit_structure.csv")]
+    legend = [{"key": r["key"], "label": r["label"], "color": r["color"], "axis": r["axis"]} for r in _read_csv("pumpunit_sensor_legend.csv")]
+
+    sensor_rows = _read_csv("pumpunit_sensors.csv")
+    sensors: dict[str, Any] = {"labels": [r["time"] for r in sensor_rows]}
+    for lg in legend:
+        sensors[lg["key"]] = [_num(r.get(lg["key"], 0)) for r in sensor_rows]
+    marker_rows = {r["key"]: r["value"] for r in _read_csv("pumpunit_alert_marker.csv")}
+    alert_marker = {"index": _num(marker_rows.get("index", 0), int), "label": marker_rows.get("label", "")}
+
+    mini_rows = _read_csv("pumpunit_score_mini.csv")
+    score_mini = {"labels": [r["time"] for r in mini_rows], "values": [_num(r["value"]) for r in mini_rows]}
+    week_rows = _read_csv("pumpunit_score_7day.csv")
+    score_7day = {"labels": [r["date"] for r in week_rows], "values": [_num(r["value"]) for r in week_rows]}
+    recon_rows = _read_csv("pumpunit_reconstruction.csv")
+    reconstruction = {"labels": [r["time"] for r in recon_rows], "values": [_num(r["value"]) for r in recon_rows], "threshold": _num(alert_info.get("recon_threshold", 0.35))}
+    dist_rows = _read_csv("pumpunit_distribution.csv")
+    dist_marker = {r["key"]: r["value"] for r in _read_csv("pumpunit_distribution_marker.csv")}
+    distribution = {"buckets": [_num(r["bucket"], int) for r in dist_rows], "frequency": [_num(r["frequency"], int) for r in dist_rows],
+                    "marker": {"value": _num(dist_marker.get("value", 0), int), "label": dist_marker.get("label", "")}}
+    chat = [{"sender": r["sender"], "time": r["time"], "kind": r["kind"], "text": r["text"]} for r in _read_csv("pumpunit_ai_chat.csv")]
+    rawdata: dict[str, list] = {}
+    for r in _read_csv("pumpunit_rawdata.csv"):
+        rawdata.setdefault(r["series"], []).append([_num(r["x"]), _num(r["y"])])
+    history = [{"date": r["date"], "cause": r["cause"], "action": r["action"]} for r in _read_csv("pumpunit_failure_history.csv")]
+    history.sort(key=lambda h: h["date"], reverse=True)  # newest at the top
+    return {
+        "meta": meta, "nav": nav, "rawdata": rawdata, "history": history, "tabs": tabs, "alert_info": alert_info, "structure": structure, "legend": legend,
+        "sensors": sensors, "alert_marker": alert_marker, "score_mini": score_mini,
+        "latest_score": _num(alert_info.get("latest_score", 0), int), "score_grade": alert_info.get("score_grade", ""),
+        "threshold": _num(alert_info.get("threshold", 70), int),
+        "score_7day": score_7day, "reconstruction": reconstruction, "distribution": distribution, "chat": chat,
+    }
+
+
+def _pumpunit_context_text(pu: dict[str, Any]) -> str:
+    meta, alert = pu["meta"], pu["alert_info"]
+    state_ja = {"critical": "異常", "warning": "注意", "normal": "正常"}
+    structure_lines = "\n".join(f"- {s['stage']}: {state_ja.get(s['state'], s['state'])}" for s in pu["structure"])
+    sensors = pu["sensors"]
+    sensor_lines = []
+    for lg in pu["legend"]:
+        vals = sensors.get(lg["key"], [])
+        if vals:
+            sensor_lines.append(f"- {lg['label']}: 開始{vals[0]}→現在{vals[-1]}（最小{min(vals)}／最大{max(vals)}）")
+    recon = pu["reconstruction"]
+    recon_max = max(recon["values"]) if recon["values"] else 0
+    recon_max_time = recon["labels"][recon["values"].index(recon_max)] if recon["values"] else ""
+    week = pu["score_7day"]
+    day_last: dict[str, float] = {}
+    for d, v in zip(week["labels"], week["values"]):
+        day_last[d] = v
+    week_text = "、".join(f"{d}: {v}" for d, v in day_last.items())
+    return f"""【設備】{meta.get('equipment_name')}（{meta.get('tag')}）／{meta.get('area_line')}
+【現在時刻】{meta.get('datetime')}
+
+【異常スコア】現在値 {pu['latest_score']}/100（表示グレード {pu['score_grade'] or '-'}、閾値{pu['threshold']}）、判定: {alert.get('latest_alert_level')}
+【最新アラート】検出時刻 {alert.get('latest_alert_time')}、判定 {alert.get('alert_verdict')}、検知継続 {alert.get('detection_streak')}
+【モデル】{alert.get('model_name')}（学習データ期間 {str(alert.get('training_period', '')).replace(chr(10), '')}）
+
+【設備構成の状態】
+{structure_lines}
+
+【直近24時間のセンサー推移】
+{chr(10).join(sensor_lines)}
+
+【再構成誤差（Autoencoder出力）】閾値 {recon['threshold']}、直近24時間の最大値 {recon_max}（{recon_max_time} 発生）
+
+【過去7日間の異常スコア推移（日毎の最終値）】{week_text}
+
+【設備異常履歴（日時／原因／対策）】
+{chr(10).join(f"- {h['date']}: {h['cause']} → {h['action']}" for h in pu.get('history', []))}"""
+
+
+def pumpunit_ai_ask(question: str) -> dict[str, Any]:
+    if not deepseek_available():
+        return {"ok": False, "error": "DeepSeek APIが設定されていません。.env.local に DEEPSEEK_API_KEY を設定すると回答できるようになります。"}
+    pu = pumpunit_detail_data()
+    context = _pumpunit_context_text(pu) if DEEPSEEK_SEND_STRUCTURED_EVIDENCE else "[設備データの送信は設定で無効化されています]"
+    user_prompt = f"以下は監視対象設備の実データです。この情報だけを根拠に、質問に日本語で答えてください。\n\n{context}\n\n【質問】\n{question}"
+    try:
+        answer = deepseek_chat(
+            system=(
+                "あなたは製造設備の異常検知AIアシスタントです。渡された設備の実データだけを根拠に回答し、"
+                "データにない数値や原因を創作しないでください。箇条書きを使ってもよいですが、"
+                "レポートのような長文にはせず、チャットの返信として自然な分量（数行〜十数行程度）にまとめてください。"
+                "回答はプレーンテキストで返し、Markdown記法（見出しの # や太字の **）は一切使わないでください。"
+            ),
+            user=user_prompt,
+            thinking=False,
+            reasoning_effort="low",
+            max_tokens=1000,
+            temperature=0.2,
+        )
+        return {"ok": True, "answer": answer}
+    except DeepSeekError as exc:
+        return {"ok": False, "error": f"DeepSeekへの問い合わせに失敗しました（{exc}）"}

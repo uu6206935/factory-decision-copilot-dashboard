@@ -792,4 +792,330 @@ write_csv(
     ],
 )
 
+
+# ---------------------------------------------------------------------------
+# 18) 保全 > 保全情報 (CCR maintenance-info screen reproducing the
+#     高岡電池工場 CCRダッシュボード「保全情報」reference image 1:1, plus the
+#     toggleable live AI chat panel)
+# ---------------------------------------------------------------------------
+write_csv("maintenance_meta.csv", ["key", "value"], [
+    ["factory_name", "高岡電池工場"], ["title", "CCRダッシュボード"], ["subtitle", "保全情報"],
+    ["line_name", "LINE #1"], ["report_date", "2026/05/28"], ["shift", "白直"],
+    ["auto_refresh_label", "自動更新"], ["auto_refresh", "ON"],
+])
+write_csv("maintenance_kpis.csv", ["key", "label", "value", "unit", "day_delta", "week_delta", "tier"], [
+    ["w_rate", "W 稼働率", "98.1", "%", "+0.2", "+0.3", "good"],
+    ["t_rate", "T 稼働率", "99.8", "%", "+0.1", "+0.2", "good"],
+    ["k_rate", "K 稼働率", "94.3", "%", "-0.6", "-1.2", "critical"],
+    ["line_stop", "ライン停止時間", "5", "M", "-2", "-3", "neutral"],
+])
+write_csv("maintenance_rate.csv", ["key", "value"], [
+    ["label", "台当り異常件数"], ["value", "1.88"], ["unit", "%"],
+    ["rework_label", "手直し総数"], ["rework_total", "1,193"], ["rework_unit", "件"],
+    ["production_label", "生産台数"], ["production_total", "63,486"], ["production_unit", "台"],
+])
+write_csv("maintenance_worst_anomaly.csv", ["rank", "process", "count", "day_delta", "flag"], [
+    [1, "XX 巻付け工程", 23, "+1", "critical"],
+    [2, "●● 巻付け工程", 21, "+1", "critical"],
+    [3, "XX 組立工程", 14, "-2", "none"],
+])
+write_csv("maintenance_worst_stoptime.csv", ["rank", "process", "hours", "day_delta", "flag"], [
+    [1, "XX 巻付け工程", 23, "+1", "critical"],
+    [2, "▲▲ 巻付け工程", 15, "+3", "warn"],
+    [3, "●● 巻付け工程", 10, "-2", "none"],
+])
+write_csv("maintenance_status_summary.csv", ["tier", "label", "count", "link_label"], [
+    ["critical", "異常の兆候あり", 3, "詳細を見る"],
+    ["warning", "注意（監視強化）", 7, "詳細を見る"],
+    ["normal", "正常", 18, "詳細を見る"],
+    ["offline", "停止中", 2, "詳細を見る"],
+])
+write_csv("maintenance_trend.csv", ["date", "total", "red", "yellow", "blue"], [
+    ["5/24", 112, 25, 21, 14], ["5/25", 118, 25, 21, 14], ["5/26", 123, 25, 21, 15],
+    ["5/27", 136, 24, 21, 14], ["5/28 (本日)", 142, 23, 21, 14],
+])
+write_csv("maintenance_trend_legend.csv", ["key", "label"], [
+    ["total", "合計件数"], ["red", "XX 巻付け工程"], ["yellow", "●● 巻付け工程"], ["blue", "XX 組立工程"],
+])
+write_csv("maintenance_score_cards.csv", ["eq_id", "eq_name", "risk", "badge", "score"], [
+    ["A-02", "巻取コート設備", "high", "異常スコア", 87],
+    ["B-03", "化成設備", "high", "異常スコア", 78],
+    ["A-01", "巻取ラミネート設備", "mid", "警戒スコア", 62],
+    ["C-02", "組立検査設備", "low", "正常スコア", 34],
+])
+# 5-day, 2-hourly anomaly-score history per equipment (60 points), shaped so
+# each card's sparkline reads like the reference: two rising/jagged "high"
+# lines, one oscillating "mid" line, one flat noisy "low" line.
+MAINT_PTS = 60
+maint_score_rows = []
+maint_shapes = {
+    "A-02": (30.0, 87.0, 1.6, 9.0),
+    "B-03": (38.0, 78.0, 1.2, 12.0),
+    "A-01": (58.0, 62.0, 1.0, 11.0),
+    "C-02": (32.0, 34.0, 1.0, 5.0),
+}
+for eq_id, (start, end, curve, noise) in maint_shapes.items():
+    v = start
+    for i in range(MAINT_PTS):
+        frac = i / (MAINT_PTS - 1)
+        target = start + (end - start) * (frac ** curve)
+        # random walk pulled back toward the trend line (jagged, not smooth)
+        v = v + (target - v) * 0.55 + rng.uniform(-noise, noise)
+        v = min(98.0, max(3.0, v))
+        day = 24 + (i * 2) // 24
+        hour = (i * 2) % 24
+        if i == MAINT_PTS - 1:
+            v = end
+        maint_score_rows.append([eq_id, f"05/{day:02d} {hour:02d}:00", round(v, 1)])
+write_csv("maintenance_score_series.csv", ["eq_id", "time", "value"], maint_score_rows)
+write_csv("maintenance_ai_tips.csv", ["color", "equipment", "occurred", "serial_no", "health_score", "comment"], [
+    ["red", "XX 巻布工程設備", "5/27", "6", "E", "軸交換が必要です。"],
+    ["yellow", "●● 巻付け工程設備", "5/27", "3", "D", "継続的な悪化傾向あり、要確認。"],
+    ["blue", "XX 組付工程設備", "5/28", "2", "C", "予兆の兆候あり。"],
+])
+write_csv("maintenance_ai_chat.csv", ["sender", "time", "text"], [
+    ["ai", "10:30", "こんにちは！保全情報についてご案内します。設備の異常兆候や停止時間について、気になる点があればお尋ねください。"],
+    ["user", "10:31", "今もっとも優先して対応すべき設備はどれですか？"],
+    ["ai", "10:31", "現在、XX 巻付け工程の異常件数と設備停止時間がともにワースト1位で、AI提案でもXX 巻布工程設備がHealthScore Eと最も深刻です。軸交換が必要な状態のため、最優先での対応を推奨します。次いで●● 巻付け工程設備（HealthScore D）も継続的な悪化傾向があるため、早めの確認をお勧めします。"],
+])
+# Mascot shown on 保全情報2 (こひにゃん): sits beside the AI toggle, clicking it
+# opens the AI panel, and it doubles as the assistant's chat avatar.
+write_csv("maintenance_mascot.csv", ["key", "value"], [
+    ["name", "こひにゃん"],
+    ["bubble", "ぼくこひにゃん！ぼくをクリックしたら、あなたのアシストをするよ！"],
+    ["image", "/static/kohinyan.png"],
+    ["avatar", "/static/kohinyan_avatar.png"],
+])
+
+# ---------------------------------------------------------------------------
+# 19) 生産状況 > 生産状況 (conveyor line-map production status screen,
+#     reproducing the reference image 1:1 on a 1672×941 canvas; every
+#     station / track / carry / indicator / KPI is data-driven from here)
+# ---------------------------------------------------------------------------
+write_csv("production_status_meta.csv", ["key", "value"], [
+    ["current", "5"], ["target", "10"], ["target_relative", "50"],
+    ["availability", "95"], ["planned_working_pct", "66"], ["planned_marker_pct", "50"],
+    ["overtime_planned", "10"], ["overtime", "2,5"],
+    ["errors", "2"], ["lack", "30"], ["failed", "5"],
+    ["errors_bar_px", "6"], ["lack_bar_px", "97"], ["failed_bar_px", "45"],
+    # every "Produced" counter starts at its CSV value and +1 every N seconds
+    ["produced_interval_sec", "2"],
+])
+# x,y,w,h in canvas px; state green/red/grey; label_y/produced_y absolute;
+# produced = initial counter value (blank = no "Produced" box; it then counts
+# up by 1 every produced_interval_sec); car=1 draws the yellow vehicle tile.
+write_csv("production_status_stations.csv", ["id", "label", "x", "y", "w", "h", "state", "label_y", "produced", "produced_y", "car"], [
+    ["bs", "B/S", 95, 185, 65, 425, "green", 405, 152, 505, 0],
+    ["mb_red", "M/B", 340, 345, 60, 430, "red", 535, 152, 635, 1],
+    ["mb_green", "M/B", 668, 493, 58, 340, "green", 660, 152, 710, 0],
+    ["ub", "U/B", 698, 312, 364, 60, "green", 324, 152, 342, 0],
+    ["sim1", "S-IM-1", 908, 85, 210, 55, "green", 97, 152, 115, 0],
+    ["sim2", "S-IM-2", 908, 150, 210, 55, "grey", 162, 152, 180, 0],
+    ["sim1b", "", 1145, 85, 180, 55, "green", 0, "", 0, 0],
+    ["sim2b", "", 1145, 150, 180, 55, "grey", 0, "", 0, 0],
+    ["ff", "F/F", 1207, 320, 73, 160, "red", 348, 152, 430, 0],
+    ["fb", "F/B", 1285, 435, 80, 78, "red", 462, "", 0, 0],
+    ["ec", "E/C", 965, 512, 60, 123, "red", 537, 152, 605, 0],
+    ["ec2", "E/C", 1027, 560, 79, 100, "red", 580, "", 0, 0],
+    ["fsm", "F/SM", 1027, 660, 79, 40, "grey", 680, "", 0, 0],
+    ["ur", "U/R", 883, 625, 60, 170, "red", 703, 152, 733, 0],
+    ["ur2", "U/R", 957, 815, 90, 80, "grey", 835, "", 0, 0],
+    ["cfrf", "C/F|R/F", 1083, 815, 90, 80, "red", 833, "", 0, 0],
+    ["tall", "", 1262, 570, 56, 255, "green", 0, "", 0, 0],
+])
+# conveyor centre-lines (SVG path data) in FLOW order: each path starts where
+# pallets enter it (the line starts top-left at B/S), so the stepped dash
+# animation moves every pallet forward along the line
+write_csv("production_status_tracks.csv", ["id", "d"], [
+    ["left_loop", "M125,612 V650 A30,30 0 0 0 155,680 H205 A30,30 0 0 0 235,650 V237 A35,35 0 0 1 305,237 V340 A30,30 0 0 0 335,370 H352"],
+    ["top_row", "M668,610 H535 A30,30 0 0 1 505,580 V150 A30,30 0 0 1 535,120 H908"],
+    ["top_row2", "M640,120 A32.5,32.5 0 0 0 640,185 H908"],
+    ["ub_left", "M668,610 H620 A30,30 0 0 1 590,580 V370 A30,30 0 0 1 620,340 H698"],
+    ["ub_right", "M1062,340 H1207"],
+    ["ub_down1", "M910,372 V625"],
+    ["ub_down2", "M990,372 V512"],
+    ["bottom_loop", "M370,775 V840 A30,30 0 0 0 400,870 H670 A30,30 0 0 0 700,840 V833"],
+    # U/R (red) -> down, bend right, straight lane through U/R (grey) into C/F R/F
+    ["ur_out", "M913,795 V825 A30,30 0 0 0 943,855 H1095"],
+])
+# carry labels: marker = badge (red circle count) | count (plain red number
+# + small red square) | vehicle (yellow AGV) | bar (blue bar + white count)
+write_csv("production_status_carries.csv", ["label", "x", "y", "marker", "count", "arrows_y", "arrow_dx"], [
+    ["E/F Carry", 272, 143, "vehicle", "", 0, 0],
+    ["S-MB-3Carry", 455, 297, "count", "2", 337, 22],
+    ["S-IM-1 Carry", 760, 55, "badge", "0", 92, 19],
+    ["S-MB-2Carry", 762, 205, "none", "", 240, 19],
+    ["S-MB-1Carry", 640, 412, "badge", "0", 452, 19],
+    ["S-MB-2Carry", 858, 448, "badge", "0", 486, 19],
+    ["S-MB-2Carry", 1044, 448, "badge", "0", 486, 19],
+    ["S-MB-3Carry", 492, 790, "badge", "0", 828, 19],
+    ["E/F Carry", 1135, 275, "bar", "3", 0, 0],
+])
+# small status indicators: icon car | alert | m5 | m4, red count badge, optional text label
+write_csv("production_status_indicators.csv", ["icon", "x", "y", "count", "count_style", "label", "label_x", "label_y"], [
+    ["car", 30, 200, "0", "badge", "", 0, 0],
+    ["alert", 30, 510, "0", "badge", "", 0, 0],
+    ["m5", 22, 590, "0", "badge", "", 0, 0],
+    ["car", 270, 380, "0", "badge", "", 0, 0],
+    ["alert", 265, 640, "0", "badge", "", 0, 0],
+    ["m4", 270, 745, "12", "count", "", 0, 0],
+    ["car", 905, 55, "0", "badge", "", 0, 0],
+    ["alert", 985, 55, "0", "badge", "", 0, 0],
+    ["car", 1065, 55, "0", "badge", "", 0, 0],
+    ["car", 905, 220, "0", "badge", "", 0, 0],
+    ["alert", 985, 220, "0", "badge", "", 0, 0],
+    ["car", 1065, 220, "0", "badge", "", 0, 0],
+    ["car", 755, 287, "0", "badge", "", 0, 0],
+    ["alert", 838, 287, "0", "badge", "", 0, 0],
+    ["car", 985, 287, "0", "badge", "", 0, 0],
+    ["car", 820, 385, "0", "badge", "", 0, 0],
+    ["car", 1015, 385, "0", "badge", "", 0, 0],
+    ["car", 740, 505, "0", "badge", "L/R", 748, 530],
+    ["car", 590, 530, "0", "badge", "", 0, 0],
+    ["car", 745, 605, "0", "badge", "B/R", 750, 636],
+    ["car", 600, 640, "0", "badge", "", 0, 0],
+    ["car", 745, 662, "0", "badge", "UP/R", 750, 691],
+    ["alert", 595, 715, "0", "badge", "", 0, 0],
+    ["car", 745, 810, "0", "badge", "IN/OUT", 750, 836],
+    ["car", 600, 810, "0", "badge", "", 0, 0],
+    ["alert", 870, 810, "0", "badge", "", 0, 0],
+])
+# thin connector lines (none: the U/R -> C/F link is a real conveyor lane now)
+write_csv("production_status_lines.csv", ["x1", "y1", "x2", "y2"], [])
+# ---------------------------------------------------------------------------
+# 20) 設備監視 > ナットランナーPU-01（2）: Factory Guardian「設備詳細」画面
+#     (ポンプユニット PU-01) を 1:1 で再現 — ラベル・系列・チャット文まで全部ここから
+# ---------------------------------------------------------------------------
+import math as _math
+write_csv("pumpunit_meta.csv", ["key", "value"], [
+    ["app_name", "Factory Guardian"], ["crumb1", "設備一覧"], ["crumb2", "設備詳細"],
+    ["datetime", "2025/05/19  10:30:00"], ["auto_refresh", "自動更新 ON"], ["bell_count", "1"], ["user", "管理者"],
+    ["equipment_name", "ナットランナーPU-01"], ["tag", "重要設備"], ["area_line", "エリアA / 製造ライン1"],
+    ["active_tab", "概要"], ["period", "24時間"],
+    ["structure_image", "/static/nutrunner_section.png"],
+    ["mini_start", "05/19 00:00"],  # 左上グラフの起点（１軸系列をここから表示）
+])
+write_csv("pumpunit_nav.csv", ["label", "icon", "active", "badge"], [
+    ["ダッシュボード", "home", 0, ""], ["設備監視", "monitor", 1, ""], ["アラート一覧", "bell", 0, "3"],
+    ["設備一覧", "list", 0, ""], ["レポート", "report", 0, ""], ["設定", "gear", 0, ""],
+])
+write_csv("pumpunit_tabs.csv", ["label"], [["概要"], ["時系列分析"], ["閾値分析"], ["履歴"]])
+write_csv("pumpunit_alert_info.csv", ["key", "value"], [
+    ["latest_alert_level", "高異常"], ["latest_alert_time", "2025/05/19 09:55"], ["alert_verdict", "異常（AI）"],
+    ["detection_streak", "3日"], ["model_name", "Autoencoder v2.1"], ["training_period", "2025/01/01\n〜2025/04/30"],
+    ["threshold", "70"], ["latest_score", "85"], ["score_grade", "E"], ["recon_threshold", "0.35"],
+])
+write_csv("pumpunit_structure.csv", ["stage", "state"], [
+    ["モーター", "normal"], ["ギヤ", "normal"], ["ソケット", "critical"],
+])
+write_csv("pumpunit_sensor_legend.csv", ["key", "label", "color", "axis"], [
+    ["anomaly_score", "１軸", "#e5322d", "left"], ["discharge_pressure", "２軸", "#3b9dff", "left"],
+    ["current_oc", "３軸", "#f5c400", "left"], ["motor_current", "４軸", "#5cc84a", "left"],
+    ["temperature", "５軸", "#a45fe0", "left"],
+])
+PU_N = 97  # 15-minute samples, 05/18 10:30 -> 05/19 10:30
+def pu_time(i):
+    m = 10 * 60 + 30 + i * 15
+    day = 18 + m // (24 * 60)
+    m %= 24 * 60
+    return f"05/{day:02d} {m // 60:02d}:{m % 60:02d}"
+# １軸 (red) is the anomaly score; ２〜５軸 share the red line's starting value and
+# stay in the same low band (never below 1, so nothing is clipped at the bottom).
+pu_rows = []
+pu_start = None
+for i in range(PU_N):
+    f = i / (PU_N - 1)
+    if f < 0.78:
+        score = 6 + rng.uniform(-3, 3)
+    else:
+        score = 6 + (f - 0.78) / 0.22 * 68 + rng.uniform(-9, 9)
+    if i >= PU_N - 4:
+        score = 78 + rng.uniform(0, 12)
+    if i == PU_N - 1:
+        score = 85.0
+    score = round(max(1, min(98, score)), 1)
+    if pu_start is None:
+        pu_start = score
+    def ax(drift, noise, first=(i == 0)):
+        return pu_start if first else round(max(1.0, pu_start + drift + rng.uniform(-noise, noise)), 1)
+    pu_rows.append([
+        pu_time(i),
+        score,
+        ax(8 * f, 2.5),                                   # ２軸: slow rise
+        ax(2 + 3 * _math.sin(f * 6.0), 2.0),               # ３軸: gentle wave
+        ax(1 + 10 * max(0.0, f - 0.75) / 0.25, 2.0),       # ４軸: rises late, like the load
+        ax(4 + 4 * _math.sin(f * 3.0 + 1.0), 2.5),         # ５軸: gentle wave
+    ])
+write_csv("pumpunit_sensors.csv", ["time", "anomaly_score", "discharge_pressure", "current_oc", "motor_current", "temperature"], pu_rows)
+write_csv("pumpunit_alert_marker.csv", ["key", "value"], [["index", 84], ["label", "アラート発生 09:55"]])
+pu_mini = []
+for i in range(49):
+    f = i / 48
+    v = 30 + 55 * (f ** 1.3) + rng.uniform(-6, 6)
+    pu_mini.append([pu_time(i * 2), round(85.0 if i == 48 else max(5, min(97, v)), 1)])
+write_csv("pumpunit_score_mini.csv", ["time", "value"], pu_mini)
+pu_week = []
+for i in range(56):
+    f = i / 55
+    v = 25 + 60 * (f ** 1.6) + rng.uniform(-5, 5)
+    pu_week.append([f"05/{13 + i // 8:02d}", round(85.0 if i == 55 else max(5, min(97, v)), 1)])
+write_csv("pumpunit_score_7day.csv", ["date", "value"], pu_week)
+pu_recon = []
+for i in range(PU_N):
+    v = 0.3 + rng.uniform(-0.13, 0.13)
+    if i == 63:
+        v = 0.92
+    elif i in (18, 41, 77):
+        v = 0.58 + rng.uniform(0, 0.08)
+    pu_recon.append([pu_time(i), round(max(0.08, min(0.95, v)), 3)])
+write_csv("pumpunit_reconstruction.csv", ["time", "value"], pu_recon)
+pu_dist = []
+for b in range(0, 100, 2):
+    freq = 30 * _math.exp(-((b + 1 - 42) ** 2) / (2 * 13 ** 2)) + rng.uniform(-1.2, 1.2)
+    pu_dist.append([b, int(round(max(0, freq)))])
+write_csv("pumpunit_distribution.csv", ["bucket", "frequency"], pu_dist)
+write_csv("pumpunit_distribution_marker.csv", ["key", "value"], [["value", 85], ["label", "現在値 85"]])
+# 生データ: two point clouds (blue / orange) over the same 24h; both sink where the
+# anomaly score rises (last ~20% of the window), like the reference scatter image.
+pu_raw = []
+for series, base, noise, outlier in (("blue", 0.62, 0.13, 0.06), ("orange", 0.55, 0.08, 0.02)):
+    for i in range(180):
+        x = i / 179 + rng.uniform(-0.004, 0.004)
+        y = base + rng.uniform(-noise, noise)
+        if rng.random() < outlier:
+            y = base + rng.uniform(0.18, 0.32)
+        if x > 0.80:
+            y -= (x - 0.80) / 0.20 * 0.45
+        pu_raw.append([series, round(min(0.97, max(0.04, x)), 4), round(min(0.97, max(0.04, y)), 4)])
+write_csv("pumpunit_rawdata.csv", ["series", "x", "y"], pu_raw)
+# newest first (the loader also sorts by date descending, so row order is not load-bearing)
+write_csv("pumpunit_failure_history.csv", ["date", "cause", "action"], [
+    ["2025/04/30", "ソケット先端のひび割れ", "ソケットの交換"],
+    ["2024/12/02", "ソケットの変形・ダメージ", "ソケットの交換、芯出し調整"],
+    ["2024/08/19", "ソケットのひび（打痕による）", "ソケットの交換、ボルト当たり面の確認"],
+    ["2024/03/08", "ソケット内面の欠け", "ソケットの交換"],
+    ["2023/10/21", "ソケット角部の摩耗・ダメージ", "ソケットの交換、締付トルク再設定"],
+    ["2023/06/03", "ソケット先端のひび割れ", "ソケットの交換"],
+    ["2023/02/15", "ソケットの破損", "ソケットの交換"],
+    ["2022/11/14", "ソケット先端のひび割れ", "ソケットの交換"],
+    ["2022/07/27", "ソケット角部の欠け", "ソケットの交換"],
+    ["2022/03/09", "ソケット内面のクラック", "ソケットの交換、締付回数の見直し"],
+    ["2021/12/20", "ソケットの破損", "ソケットの交換"],
+    ["2021/09/06", "ソケットのひび（打痕による）", "ソケットの交換、ボルト当たり面の確認"],
+    ["2021/05/18", "ソケットの摩耗・ダメージ", "ソケットの交換"],
+    ["2021/01/25", "ソケット先端のひび割れ", "ソケットの交換"],
+    ["2020/10/12", "ソケットの変形", "ソケットの交換、芯出し調整"],
+    ["2020/06/29", "ソケット内面の欠け", "ソケットの交換"],
+    ["2020/02/17", "ソケットのひび割れ", "ソケットの交換"],
+    ["2019/11/04", "ソケット角部のダメージ", "ソケットの交換、締付トルク再設定"],
+    ["2019/07/22", "ソケットの破損", "ソケットの交換"],
+    ["2019/03/11", "ソケット先端のひび", "ソケットの交換"],
+])
+write_csv("pumpunit_ai_chat.csv", ["sender", "time", "kind", "text"], [
+    ["user", "10:28", "text", "この装置の異常のトレンドを教えてください。"],
+    ["ai", "10:28", "text", "過去7日間の異常スコアは徐々に上昇傾向にあり、特に05/19 6:30 以降にスコアが上昇しています。これは主に、吸込みフィルターの詰まりと流量低下を原因と考えられます。"],
+    ["ai", "10:28", "chart", "過去7日間の異常スコア推移"],
+    ["user", "10:29", "text", "なぜ異常スコアが高いのかを詳しく分析してください。"],
+    ["ai", "10:29", "text", "異常スコアが高い主な要因は以下の通りです。\n・流量の低下（OC流量）\n　05/16以降、流量が徐々に低下しており、ポンプリングの効率低下の可能性があります。\n・モーター電流の増加\n　負荷の上昇や抵抗の増加が影響し、電流値が上昇しています。\n・再構成誤差の増加\n　Autoencoderモデルがパターンから大きく乖離しており、異常と判定されるデータが多くなっています。\nこれらの要因を総合的に判断し、異常スコアが高くなっています。"],
+])
 print("done")

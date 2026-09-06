@@ -20,7 +20,7 @@ from .platform import catalog_payload, get_state, rebuild
 from .security import UserContext, current_user, require_role
 from .schema import ALIASES, DISPLAY_LABELS, ROLE_REQUIRED, save_join_review, save_schema_review
 from .service import run_analysis
-from .dashboard_data import production_dashboard_data, equipment_monitor_data, bolt_torque_data, line_list_data, machine_learning_data, quality_ccr_data, nutrunner_detail_data, nutrunner_ai_ask, anomaly_dashboard_data, anomaly_dashboard_ai_ask, autoencoder_config_data, autoencoder_ai_ask
+from .dashboard_data import production_dashboard_data, equipment_monitor_data, bolt_torque_data, line_list_data, machine_learning_data, quality_ccr_data, nutrunner_detail_data, nutrunner_ai_ask, anomaly_dashboard_data, anomaly_dashboard_ai_ask, autoencoder_config_data, autoencoder_ai_ask, maintenance_data, maintenance_ai_ask, maintenance_mascot, production_status_data, pumpunit_detail_data, pumpunit_ai_ask
 from .ai_modules import intelligence_snapshot, module_status
 from .process_intelligence import process_snapshot
 from .sensor_ai import equipment_health
@@ -124,7 +124,7 @@ async def disable_ui_cache(request: Request, call_next):
         # This is what makes page-to-page navigation feel instant: without it the
         # browser re-downloads the full CSS/JS bundle on every single screen.
         response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
-    elif path in {"/", "/investigate", "/onboarding", "/equipment", "/equipment/bolt-torque", "/equipment/lines", "/equipment/machine-learning", "/quality/status", "/monitoring/nut-runner-pu01", "/anomaly/detection", "/settings/autoencoder", "/intelligence", "/data-map"}:
+    elif path in {"/", "/investigate", "/onboarding", "/equipment", "/equipment/bolt-torque", "/equipment/lines", "/equipment/machine-learning", "/quality/status", "/monitoring/nut-runner-pu01", "/monitoring/nut-runner-pu01-2", "/anomaly/detection", "/settings/autoencoder", "/maintenance/info", "/maintenance/info2", "/production/status", "/intelligence", "/data-map"}:
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
@@ -248,6 +248,26 @@ def nutrunner_detail_page(request: Request):
     )
 
 
+@app.get("/monitoring/nut-runner-pu01-2", response_class=HTMLResponse)
+def nutrunner_detail2_page(request: Request):
+    # ナットランナーPU-01（2）: Factory Guardian 設備詳細 (ポンプユニット PU-01) reproduction
+    return templates.TemplateResponse(
+        request=request,
+        name="nutrunner_detail2.html",
+        context=ctx("nutrunner_detail2", pu=pumpunit_detail_data()),
+    )
+
+
+@app.post("/api/v1/pumpunit/ask")
+async def api_pumpunit_ask(request: Request, user: UserContext = Depends(current_user)):
+    body = await request.json()
+    question = str(body.get("question") or "").strip()
+    if not question:
+        return JSONResponse({"ok": False, "error": "質問を入力してください。"}, status_code=400)
+    log_audit(user.subject, "pumpunit.chat.ask", {"question": question[:200]})
+    return JSONResponse(pumpunit_ai_ask(question))
+
+
 @app.post("/api/v1/nutrunner/ask")
 async def api_nutrunner_ask(request: Request, user: UserContext = Depends(current_user)):
     body = await request.json()
@@ -294,6 +314,44 @@ async def api_autoencoder_ask(request: Request, user: UserContext = Depends(curr
         return JSONResponse({"ok": False, "error": "質問を入力してください。"}, status_code=400)
     log_audit(user.subject, "autoencoder.chat.ask", {"question": question[:200]})
     return JSONResponse(autoencoder_ai_ask(question))
+
+
+@app.get("/maintenance/info", response_class=HTMLResponse)
+def maintenance_info_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="maintenance_info.html",
+        context=ctx("maintenance_info", mt=maintenance_data()),
+    )
+
+
+@app.post("/api/v1/maintenance/ask")
+async def api_maintenance_ask(request: Request, user: UserContext = Depends(current_user)):
+    body = await request.json()
+    question = str(body.get("question") or "").strip()
+    if not question:
+        return JSONResponse({"ok": False, "error": "質問を入力してください。"}, status_code=400)
+    log_audit(user.subject, "maintenance.chat.ask", {"question": question[:200]})
+    return JSONResponse(maintenance_ai_ask(question))
+
+
+@app.get("/maintenance/info2", response_class=HTMLResponse)
+def maintenance_info2_page(request: Request):
+    # 保全情報2: same screen and data as 保全情報 (template inherits it)
+    return templates.TemplateResponse(
+        request=request,
+        name="maintenance_info2.html",
+        context=ctx("maintenance_info2", mt=maintenance_data(), mascot=maintenance_mascot(), page_label="保全情報2"),
+    )
+
+
+@app.get("/production/status", response_class=HTMLResponse)
+def production_status_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="production_status.html",
+        context=ctx("production_status", ps=production_status_data()),
+    )
 
 
 @app.get("/coming-soon", response_class=HTMLResponse)
