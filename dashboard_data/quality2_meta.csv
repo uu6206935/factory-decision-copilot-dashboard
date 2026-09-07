@@ -1,0 +1,15 @@
+﻿key,value
+factory_name,高岡電池工場
+title,CCRダッシュボード（品質状況）
+line_name,LINE #1
+report_date,2025/05/28
+shift,白直
+auto_refresh_label,自動更新
+auto_refresh,ON
+todo_title,車体部　ToDoリスト（5/28）
+bad_title,T　当月廃品数詳細
+bad_col2_label,廃品理由
+owner_self_label,自
+owner_other_label,他
+trend_y_labels,0|20|40|60|80|100|120|130|140|160|180|200
+trend_y_max,200

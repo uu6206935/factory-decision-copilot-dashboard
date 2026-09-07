@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}保全情報 · {{ app_name }}{% endblock %}
-{% block page_title %}{{ page_label|default('保全情報') }} <button type="button" class="mi-ai-toggle" id="miAiToggle"><span id="miAiToggleArrow">▶</span> AIアシスタント</button>{% if mascot %}<span class="mi-mascot" id="miMascot" role="button" tabindex="0" title="{{ mascot.name }}"><img src="{{ mascot.image }}" alt="{{ mascot.name }}"><span class="mi-bubble">{{ mascot.bubble }}</span></span>{% endif %}{% endblock %}
+{% block page_title %}{{ page_label|default('保全情報') }} <button type="button" class="mi-ai-toggle" id="miAiToggle"><span id="miAiToggleArrow">▶</span> AIアシスタント</button>{% if mascot %}<button type="button" class="mi-ai-toggle mi-fs-btn" id="miFsBtn" title="ダッシュボードだけを全画面で表示（Esc で戻る）"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6 V2 H6 M10 2 H14 V6 M14 10 V14 H10 M6 14 H2 V10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> 全画面表示</button><span class="mi-mascot" id="miMascot" role="button" tabindex="0" title="{{ mascot.name }}"><img src="{{ mascot.image }}" alt="{{ mascot.name }}"><span class="mi-bubble">{{ mascot.bubble }}</span></span>{% endif %}{% endblock %}
 {% block content %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,6 +29,7 @@
 {% set dot_color = {'red': '#e8322a', 'yellow': '#f5b400', 'blue': '#2f8fff', 'total': '#f2f2f2'} %}
 
 <div class="mi-page">
+  <button type="button" class="mi-fs-exit" id="miFsExit">✕ 全画面を終了（Esc）</button>
   <div class="mi-body ai-hidden" id="miBody">
     <div class="mi-main" id="miMain">
       <div class="mi-canvas" id="miCanvas">
@@ -112,7 +113,13 @@
               <div class="mi-scard {{ s.tier }}">
                 <div class="t">{{ s.label }}</div>
                 <div class="n">{{ status_icon(s.tier) }}<b>{{ s.count }}</b><span>台</span></div>
+                {% if s.links %}
+                <div class="lnk has-menu"><button type="button" class="lnk-btn">{{ s.link_label }} ›</button>
+                  <div class="mi-status-menu">{% for l in s.links %}{% if l.href %}<a href="{{ l.href }}">{{ l.label }}</a>{% else %}<span>{{ l.label }}</span>{% endif %}{% endfor %}</div>
+                </div>
+                {% else %}
                 <div class="lnk">{{ s.link_label }} ›</div>
+                {% endif %}
               </div>
               {% endfor %}
             </div>
@@ -136,9 +143,9 @@
             <div class="mi-cols">
               {% for c in mt.score_cards %}
               <div class="mi-col {{ c.risk }}">
-                <div class="h"><b>{{ c.eq_id }} {{ c.eq_name }}</b><i>{{ c.badge }}</i></div>
+                <div class="h"><b>{{ c.eq_id }} {{ c.eq_name }}</b>{% if c.href %}<a class="jump" href="{{ c.href }}" title="ナットランナーPU-01 のページへ移動"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.5" y="2.5" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7.5 12.5 L12.5 7.5 M9 7.5 H12.5 V11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>{% else %}<i>{{ c.badge }}</i>{% endif %}</div>
                 <div class="l">異常スコア</div>
-                <div class="s">{{ c.score }}<span>/100</span></div>
+                <div class="s">{{ c.score }}<span>/100</span>{% if c.grade %}<b class="grade {{ c.risk }}">{{ c.grade }}</b>{% endif %}</div>
                 <div class="mi-mini" id="miMini{{ loop.index }}"></div>
               </div>
               {% endfor %}
@@ -206,6 +213,7 @@
 <script>
 (function(){
   var mt = {{ mt|tojson }};
+  var CANVAS_W = 1450, CANVAS_H = 1086;
   var AI_AVATAR = {{ (mascot.avatar if mascot else '')|tojson }};
   var NS = 'http://www.w3.org/2000/svg';
   var FONT = "'Noto Sans JP','Hiragino Kaku Gothic ProN','Yu Gothic',Meiryo,sans-serif";
@@ -295,10 +303,15 @@
       svg.appendChild(el('path', { d: line, fill: 'none', stroke: color, 'stroke-width': 1.6, 'stroke-linejoin': 'round' }));
     }
     var xl = c.series.labels;
-    var lab = function(i){ return (xl[i] || '').replace(/^0?(\d+)\/0?(\d+).*$/, '$1/$2'); };
-    svg.appendChild(txt(X0, H - 4, lab(0), { 'text-anchor': 'start', 'font-size': 11, fill: '#d0d0d0' }));
-    svg.appendChild(txt((X0 + X1) / 2, H - 4, lab(Math.floor((n - 1) / 2)), { 'text-anchor': 'middle', 'font-size': 11, fill: '#d0d0d0' }));
-    svg.appendChild(txt(X1 + 4, H - 4, lab(n - 1) + '(本日)', { 'text-anchor': 'end', 'font-size': 11, fill: '#d0d0d0' }));
+    var day = function(i){ return (xl[i] || '').replace(/^0?(\d+)\/0?(\d+).*$/, '$1/$2'); };
+    var tod = function(i){ var m = /(\d{1,2}:\d{2})$/.exec(xl[i] || ''); return m ? m[1] : day(i); };
+    // multi-day series: date labels; single-day series (e.g. ナットランナーPU-01 １軸): date once, then times
+    var sameDay = n > 1 && day(0) === day(n - 1);
+    var mid = Math.floor((n - 1) / 2);
+    if (sameDay) { while (mid > 0 && !/:00$/.test(xl[mid] || '')) mid--; }
+    svg.appendChild(txt(X0, H - 4, sameDay ? tod(0) : day(0), { 'text-anchor': 'start', 'font-size': 11, fill: '#d0d0d0' }));
+    svg.appendChild(txt((X0 + X1) / 2, H - 4, sameDay ? tod(mid) : day(mid), { 'text-anchor': 'middle', 'font-size': 11, fill: '#d0d0d0' }));
+    svg.appendChild(txt(X1 + 4, H - 4, (sameDay ? tod(n - 1) : day(n - 1)) + '(本日)', { 'text-anchor': 'end', 'font-size': 11, fill: '#d0d0d0' }));
     host.appendChild(svg);
   });
 
@@ -334,12 +347,60 @@
       fitCanvas();
     });
   }
+  // 設備ステータスサマリー: 「詳細を見る ›」で設備リストを開閉（外側クリックで閉じる）
+  document.querySelectorAll('.mi-scard .lnk-btn').forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      var wrap = btn.parentNode, open = wrap.classList.contains('open');
+      document.querySelectorAll('.mi-scard .lnk.open').forEach(function(w){ w.classList.remove('open'); });
+      if (!open) wrap.classList.add('open');
+    });
+  });
+  document.addEventListener('click', function(){ document.querySelectorAll('.mi-scard .lnk.open').forEach(function(w){ w.classList.remove('open'); }); });
   // Mascot (こひにゃん) beside the toggle: clicking it opens/closes the AI panel too.
   var mascotEl = document.getElementById('miMascot');
   if (mascotEl && toggleBtn) {
     mascotEl.addEventListener('click', function(){ toggleBtn.click(); });
     mascotEl.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleBtn.click(); } });
   }
+
+
+  // ---- 全画面表示: the dashboard canvas alone (no sidebar / top bar / AI panel) ----
+  // While active the page element is re-parented to <body> (outside the app's
+  // transform:scale wrapper) and fixed over the whole viewport; the browser
+  // Fullscreen API is requested on top of that when the browser allows it.
+  var fsBtn = document.getElementById('miFsBtn');
+  var fsExit = document.getElementById('miFsExit');
+  var pageEl = document.querySelector('.mi-page');
+  var fsHome = { parent: pageEl.parentNode, next: pageEl.nextSibling };
+  function inFs(){ return pageEl.classList.contains('fs-fallback'); }
+  function fitFs(){
+    var z = Math.min(window.innerWidth / CANVAS_W, window.innerHeight / CANVAS_H);
+    canvas.style.zoom = String(z);
+    if (panel) panel.style.height = '';
+  }
+  function enterFs(){
+    if (inFs()) return;
+    if (pageEl.parentNode !== document.body) document.body.appendChild(pageEl);
+    pageEl.classList.add('fs-fallback'); document.body.classList.add('fs-fallback-body'); document.documentElement.classList.add('fs-fallback-body');
+    window.scrollTo(0, 0);
+    fitFs();
+    if (pageEl.requestFullscreen) { try { pageEl.requestFullscreen().catch(function(){}); } catch (e) {} }
+  }
+  function exitFs(){
+    if (!inFs()) return;
+    pageEl.classList.remove('fs-fallback'); document.body.classList.remove('fs-fallback-body'); document.documentElement.classList.remove('fs-fallback-body');
+    if (pageEl.parentNode === document.body) fsHome.parent.insertBefore(pageEl, fsHome.next);
+    if (document.fullscreenElement) { try { document.exitFullscreen().catch(function(){}); } catch (e) {} }
+    fitCanvas();
+  }
+  if (fsBtn) fsBtn.addEventListener('click', function(){ inFs() ? exitFs() : enterFs(); });
+  if (fsExit) fsExit.addEventListener('click', exitFs);
+  document.addEventListener('fullscreenchange', function(){ if (document.fullscreenElement === pageEl) fitFs(); else if (inFs()) exitFs(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && inFs()) exitFs(); });
+  window.addEventListener('resize', function(){ if (inFs()) fitFs(); });
+  // ?fs=1 opens the page directly in dashboard-only mode (kiosk / shared link)
+  if (new URLSearchParams(location.search).get('fs') === '1') enterFs();
 
   // ---- Live AI chat: DeepSeek answers from this page's maintenance_*.csv ----
   var chatBody = document.getElementById('miChatBody');

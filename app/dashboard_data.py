@@ -638,7 +638,9 @@ def autoencoder_ai_ask(question: str) -> dict[str, Any]:
         return {"ok": False, "error": f"DeepSeekへの問い合わせに失敗しました（{exc}）"}
 
 
-def maintenance_data() -> dict[str, Any]:
+def maintenance_data(variant: str = "") -> dict[str, Any]:
+    """variant="2" (保全情報2) swaps in maintenance2_score_cards.csv: graded cards whose
+    first entry shows ナットランナーPU-01's １軸 series."""
     meta = {r["key"]: r["value"] for r in _read_csv("maintenance_meta.csv")}
 
     kpis = []
@@ -692,6 +694,33 @@ def maintenance_data() -> dict[str, Any]:
             "score": _num(r["score"], int),
             "series": series_by_eq.get(r["eq_id"], {"labels": [], "values": []}),
         })
+
+    if variant == "2":
+        rows2 = _read_csv("maintenance2_score_cards.csv")
+        if rows2:
+            cards2 = []
+            for r in rows2:
+                if r.get("source") == "pumpunit_axis1":
+                    pu = pumpunit_detail_data()
+                    labels = pu["sensors"]["labels"]
+                    axis1 = pu["legend"][0]["key"] if pu["legend"] else "anomaly_score"
+                    vals = pu["sensors"].get(axis1, [])
+                    start_label = pu["meta"].get("mini_start", "")
+                    start = labels.index(start_label) if start_label in labels else 0
+                    series = {"labels": labels[start:], "values": vals[start:]}
+                else:
+                    series = series_by_eq.get(r["eq_id"], {"labels": [], "values": []})
+                cards2.append({
+                    "eq_id": r["eq_id"], "eq_name": r["eq_name"], "risk": r["risk"], "badge": r["badge"],
+                    "score": _num(r["score"], int), "grade": r.get("grade", ""), "series": series,
+                    "href": r.get("href", ""),
+                })
+            score_cards = cards2
+        links_by_tier: dict[str, list] = {}
+        for r in _read_csv("maintenance2_status_links.csv"):
+            links_by_tier.setdefault(r["tier"], []).append({"label": r["label"], "href": r["href"]})
+        for s in status_summary:
+            s["links"] = links_by_tier.get(s["tier"], [])
 
     ai_tips = [
         {"color": r["color"], "equipment": r["equipment"], "occurred": r["occurred"], "serial_no": r["serial_no"], "health_score": r["health_score"], "comment": r["comment"]}
@@ -862,8 +891,10 @@ def pumpunit_detail_data() -> dict[str, Any]:
         rawdata.setdefault(r["series"], []).append([_num(r["x"]), _num(r["y"])])
     history = [{"date": r["date"], "cause": r["cause"], "action": r["action"]} for r in _read_csv("pumpunit_failure_history.csv")]
     history.sort(key=lambda h: h["date"], reverse=True)  # newest at the top
+    info_rows = [{"label": r["label"], "value": r["value"]} for r in _read_csv("pumpunit_info_rows.csv")]
+    raw_axes = [{"key": r["key"], "label": r["label"], "unit": r["unit"], "max": _num(r["max"])} for r in _read_csv("pumpunit_raw_axes.csv")]
     return {
-        "meta": meta, "nav": nav, "rawdata": rawdata, "history": history, "tabs": tabs, "alert_info": alert_info, "structure": structure, "legend": legend,
+        "meta": meta, "nav": nav, "rawdata": rawdata, "history": history, "info_rows": info_rows, "raw_axes": raw_axes, "tabs": tabs, "alert_info": alert_info, "structure": structure, "legend": legend,
         "sensors": sensors, "alert_marker": alert_marker, "score_mini": score_mini,
         "latest_score": _num(alert_info.get("latest_score", 0), int), "score_grade": alert_info.get("score_grade", ""),
         "threshold": _num(alert_info.get("threshold", 70), int),
@@ -893,6 +924,7 @@ def _pumpunit_context_text(pu: dict[str, Any]) -> str:
 【現在時刻】{meta.get('datetime')}
 
 【異常スコア】現在値 {pu['latest_score']}/100（表示グレード {pu['score_grade'] or '-'}、閾値{pu['threshold']}）、判定: {alert.get('latest_alert_level')}
+【設備情報】{'／'.join(f"{r['label']} {r['value']}" for r in pu.get('info_rows', []))}
 【最新アラート】検出時刻 {alert.get('latest_alert_time')}、判定 {alert.get('alert_verdict')}、検知継続 {alert.get('detection_streak')}
 【モデル】{alert.get('model_name')}（学習データ期間 {str(alert.get('training_period', '')).replace(chr(10), '')}）
 
@@ -921,6 +953,108 @@ def pumpunit_ai_ask(question: str) -> dict[str, Any]:
             system=(
                 "あなたは製造設備の異常検知AIアシスタントです。渡された設備の実データだけを根拠に回答し、"
                 "データにない数値や原因を創作しないでください。箇条書きを使ってもよいですが、"
+                "レポートのような長文にはせず、チャットの返信として自然な分量（数行〜十数行程度）にまとめてください。"
+                "回答はプレーンテキストで返し、Markdown記法（見出しの # や太字の **）は一切使わないでください。"
+            ),
+            user=user_prompt,
+            thinking=False,
+            reasoning_effort="low",
+            max_tokens=1000,
+            temperature=0.2,
+        )
+        return {"ok": True, "answer": answer}
+    except DeepSeekError as exc:
+        return {"ok": False, "error": f"DeepSeekへの問い合わせに失敗しました（{exc}）"}
+
+
+def tmss_history_data() -> dict[str, str]:
+    """設備異常履歴 > T-MSS detail screen: every label / date / body text from tmss_history_detail.csv."""
+    return {r["key"]: r["value"] for r in _read_csv("tmss_history_detail.csv")}
+
+
+def quality_status2_data() -> dict[str, Any]:
+    """品質 > 品質状況2 (CCR quality dashboard reproduction): everything from quality2_*.csv."""
+    meta = {r["key"]: r["value"] for r in _read_csv("quality2_meta.csv")}
+    kpis = [{
+        "key": r["key"], "prefix": r["prefix"], "label": r["label"], "value": r["value"], "unit": r["unit"], "tier": r["tier"],
+        "rows": [(r["row1_label"], r["row1_value"])] + ([(r["row2_label"], r["row2_value"])] if r["row2_label"] else []),
+    } for r in _read_csv("quality2_kpis.csv")]
+    worst_rework = [{"rank": r["rank"], "process": r["process"], "count": r["count"], "prev": r["prev"], "flag": r["flag"]} for r in _read_csv("quality2_worst_rework.csv")]
+    worst_calls = [{"rank": r["rank"], "process": r["process"], "count": r["count"], "prev": r["prev"], "flag": r["flag"]} for r in _read_csv("quality2_worst_calls.csv")]
+    bad_products = [{"date": r["date"], "reason": r.get("reason", ""), "owner": r.get("owner", "")} for r in _read_csv("quality2_bad_products.csv")]
+    todo = [{"done_by": r["done_by"], "doing_by": r["doing_by"], "task": r["task"]} for r in _read_csv("quality2_todo.csv")]
+    people = {r["surname"]: {"surname": r["surname"], "given_name": r["given_name"], "email": r["email"], "presence": r["presence"], "bg": r["bg"], "fg": r["fg"]}
+              for r in _read_csv("quality2_people.csv")}
+    trend_rows = _read_csv("quality2_trend.csv")
+    trend = {
+        "labels": [r["date"] for r in trend_rows],
+        "total": [_num(r["total"], int) for r in trend_rows],
+        "red": [_num(r["red"], int) for r in trend_rows],
+        "yellow": [_num(r["yellow"], int) for r in trend_rows],
+        "blue": [_num(r["blue"], int) for r in trend_rows],
+        "legend": {r["key"]: r["label"] for r in _read_csv("quality2_trend_legend.csv")},
+        "y_labels": [x for x in meta.get("trend_y_labels", "").split("|") if x],
+        "y_max": _num(meta.get("trend_y_max", 200)),
+    }
+    ai_tips = [{"color": r["color"], "text": r["text"]} for r in _read_csv("quality2_ai_tips.csv")]
+    chat = [{"sender": r["sender"], "time": r["time"], "text": r["text"]} for r in _read_csv("quality2_ai_chat.csv")]
+    return {"meta": meta, "kpis": kpis, "worst_rework": worst_rework, "worst_calls": worst_calls,
+            "bad_products": bad_products, "trend": trend, "ai_tips": ai_tips, "chat": chat, "todo": todo, "people": people}
+
+
+def _quality2_context_text(q: dict[str, Any]) -> str:
+    meta = q["meta"]
+    kpi_lines = "\n".join(
+        f"- {k['prefix'] + ' ' if k['prefix'] else ''}{k['label']}: {k['value']}{k['unit']}（" + "／".join(f"{a} {b}" for a, b in k["rows"]) + "）"
+        for k in q["kpis"]
+    )
+    rework = "\n".join(f"- {r['rank']}位 {r['process']}: {r['count']}（前日 {r['prev']}）" for r in q["worst_rework"])
+    calls = "\n".join(f"- {r['rank']}位 {r['process']}: {r['count']}（前日 {r['prev']}）" for r in q["worst_calls"])
+    bad = "\n".join(f"- {b['date']}: {b['reason']}（{b['owner']}工程起因）" for b in q["bad_products"])
+    todo = "\n".join(f"- {t['task']}（" + ("対応済: " + t["done_by"] if t["done_by"] else "") + ("／" if t["done_by"] and t["doing_by"] else "") + ("対応中: " + t["doing_by"] if t["doing_by"] else "") + "）" for t in q.get("todo", []))
+    tr = q["trend"]
+    lg = tr.get("legend", {})
+    trend = "\n".join(
+        f"- {d}: {lg.get('total', '全体')} {t}件（{lg.get('red', '赤')} {r}件／{lg.get('yellow', '黄')} {y}件／{lg.get('blue', '青')} {b}件）"
+        for d, t, r, y, b in zip(tr["labels"], tr["total"], tr["red"], tr["yellow"], tr["blue"])
+    )
+    tips = "\n".join(f"- {t['text']}" for t in q["ai_tips"])
+    return f"""【工場】{meta.get('factory_name')} {meta.get('title')}／{meta.get('line_name')}
+【日付】{meta.get('report_date')}（{meta.get('shift')}）
+
+【品質KPI】
+{kpi_lines}
+
+【手直し発生工程ワースト3（件数）】
+{rework}
+
+【呼出回数工程ワースト3（件数）】
+{calls}
+
+【当月廃品数詳細（製品日／廃品理由）】
+{bad}
+
+【車体部 ToDoリスト】
+{todo}
+
+【手直し発生工程ワースト3 推移（件数）】
+{trend}
+
+【AI提案（過去傾向に向けた提案）】
+{tips}"""
+
+
+def quality_status2_ai_ask(question: str) -> dict[str, Any]:
+    if not deepseek_available():
+        return {"ok": False, "error": "DeepSeek APIが設定されていません。.env.local に DEEPSEEK_API_KEY を設定すると回答できるようになります。"}
+    q = quality_status2_data()
+    context = _quality2_context_text(q) if DEEPSEEK_SEND_STRUCTURED_EVIDENCE else "[品質データの送信は設定で無効化されています]"
+    user_prompt = f"以下は工場の品質状況の実データです。この情報だけを根拠に、質問に日本語で答えてください。\n\n{context}\n\n【質問】\n{question}"
+    try:
+        answer = deepseek_chat(
+            system=(
+                "あなたは工場の品質状況AIアシスタントです。渡された品質データだけを根拠に回答し、"
+                "データにない数値や工程名を創作しないでください。箇条書きを使ってもよいですが、"
                 "レポートのような長文にはせず、チャットの返信として自然な分量（数行〜十数行程度）にまとめてください。"
                 "回答はプレーンテキストで返し、Markdown記法（見出しの # や太字の **）は一切使わないでください。"
             ),

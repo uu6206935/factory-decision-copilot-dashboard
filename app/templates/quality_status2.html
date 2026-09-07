@@ -1,0 +1,369 @@
+{% extends "base.html" %}
+{% block title %}品質状況2 · {{ app_name }}{% endblock %}
+{% block page_title %}品質状況2 <button type="button" class="mi-ai-toggle" id="miAiToggle"><span id="miAiToggleArrow">▶</span> AIアシスタント</button>{% if mascot %}<button type="button" class="mi-ai-toggle mi-fs-btn" id="miFsBtn" title="ダッシュボードだけを全画面で表示（Esc で戻る）"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6 V2 H6 M10 2 H14 V6 M14 10 V14 H10 M6 14 H2 V10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> 全画面表示</button><span class="mi-mascot" id="miMascot" role="button" tabindex="0" title="{{ mascot.name }}"><img src="{{ mascot.image }}" alt="{{ mascot.name }}"><span class="mi-bubble">{{ mascot.bubble }}</span></span>{% endif %}{% endblock %}
+{% block content %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap">
+{% macro warn_icon(kind) %}
+{% if kind == 'critical' %}
+<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2 L23 21.8 H1 Z" fill="#f5c400"/><path d="M12 9.2 V15.2" stroke="#000" stroke-width="2.6" stroke-linecap="round"/><circle cx="12" cy="18.6" r="1.5" fill="#000"/></svg>
+{% else %}
+<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2 L23 21.8 H1 Z" fill="#111"/><path d="M12 9.2 V15.2" stroke="#f5c400" stroke-width="2.6" stroke-linecap="round"/><circle cx="12" cy="18.6" r="1.5" fill="#f5c400"/></svg>
+{% endif %}
+{% endmacro %}
+{% set presence_color = {'available': '#2fa84f', 'busy': '#d13438', 'away': '#e8a317'} %}
+{% macro avatar(surname) %}
+{% set pp = q.people.get(surname) %}
+<button type="button" class="q2-av" data-person="{{ surname }}" title="{{ surname }}{% if pp %} {{ pp.given_name }}{% endif %}">
+<svg viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="20" fill="{{ pp.bg if pp else '#c9d8f3' }}"/><text x="22" y="27.5" text-anchor="middle" font-size="15" font-weight="700" fill="{{ pp.fg if pp else '#1b3a6b' }}" font-family="'Noto Sans JP','Yu Gothic',Meiryo,sans-serif">{{ surname }}</text><circle cx="36" cy="36" r="7.5" fill="#101215"/><circle cx="36" cy="36" r="5.5" fill="{{ presence_color.get(pp.presence if pp else 'available', '#2fa84f') }}"/>{% if pp and pp.presence == 'busy' %}<path d="M32.5 36 H39.5" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>{% elif pp and pp.presence == 'away' %}<path d="M36 32.8 V36.2 L38.4 37.8" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>{% else %}<path d="M33.2 36.2 L35.3 38.3 L38.9 34.4" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>{% endif %}</svg>
+</button>
+{% endmacro %}
+{% set dot_color = {'red': '#e8322a', 'yellow': '#f5c400', 'blue': '#2f8fff'} %}
+{% set kpi_geo = [[15, 263], [292, 276], [583, 272], [866, 277], [1157, 273]] %}
+
+<div class="q2-page">
+  <button type="button" class="mi-fs-exit" id="miFsExit">✕ 全画面を終了（Esc）</button>
+  <div class="mi-body ai-hidden" id="miBody">
+    <div class="mi-main" id="miMain">
+      <div class="q2-canvas" id="q2Canvas">
+
+        <div class="q2-head">
+          <span class="ttl">{{ q.meta.factory_name }}　{{ q.meta.title }}</span>
+          <span class="q2-stripes"></span>
+          <span class="line">{{ q.meta.line_name }}</span>
+          <span class="date">{{ q.meta.report_date }}</span>
+          <span class="shift">{{ q.meta.shift }}</span>
+          <span class="auto"><svg viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="7" fill="#3fc41c"/></svg>{{ q.meta.auto_refresh_label }}：{{ q.meta.auto_refresh }}</span>
+        </div>
+
+        {% for k in q.kpis %}
+        {% set g = kpi_geo[loop.index0] %}
+        <div class="q2-kpi {{ k.tier }} {% if not k.prefix %}no-pre{% endif %}" style="left:{{ g[0] }}px;width:{{ g[1] }}px">
+          <div class="lbl">{% if k.prefix %}{{ k.prefix }}　{% endif %}{{ k.label }}</div>
+          <div class="val">{{ k.value }}<small>{{ k.unit }}</small></div>
+          <div class="sep"></div>
+          <div class="rows {% if k.rows|length == 1 %}one{% endif %}">
+            {% for r in k.rows %}<div><span>{{ r[0] }}</span><span>{{ r[1] }}</span></div>{% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+
+        <div class="q2-panel" style="left:15px;top:292px;width:525px;height:243px">
+          <div class="ttl">手直し発生工程ワースト３<small>（件数）</small></div>
+          <table class="q2-tbl">
+            <colgroup><col style="width:60px"><col style="width:200px"><col style="width:85px"><col style="width:90px"><col style="width:90px"></colgroup>
+            <thead><tr><th>順位</th><th>工程</th><th>件数</th><th>前日数</th><th>変化点</th></tr></thead>
+            <tbody>
+              {% for r in q.worst_rework %}
+              <tr class="{{ r.flag if r.flag != 'none' else '' }}"><td>{{ r.rank }}</td><td class="proc">{{ r.process }}</td><td>{{ r.count }}</td><td>{{ r.prev }}</td><td>{% if r.flag != 'none' %}{{ warn_icon(r.flag) }}{% else %}—{% endif %}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="q2-panel" style="left:553px;top:292px;width:502px;height:243px">
+          <div class="ttl">呼出回数工程ワースト３<small>（件数）</small></div>
+          <table class="q2-tbl">
+            <colgroup><col style="width:60px"><col style="width:195px"><col style="width:80px"><col style="width:85px"><col style="width:82px"></colgroup>
+            <thead><tr><th>順位</th><th>工程</th><th>件数</th><th>前日数</th><th>変化点</th></tr></thead>
+            <tbody>
+              {% for r in q.worst_calls %}
+              <tr class="{{ r.flag if r.flag != 'none' else '' }}"><td>{{ r.rank }}</td><td class="proc">{{ r.process }}</td><td>{{ r.count }}</td><td>{{ r.prev }}</td><td>{% if r.flag != 'none' %}{{ warn_icon(r.flag) }}{% else %}—{% endif %}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="q2-panel" style="left:1065px;top:292px;width:365px;height:243px">
+          <div class="ttl">{{ q.meta.bad_title or "T　当月廃品数詳細" }}</div>
+          <div class="q2-owner-legend"><span><i class="self"></i>{{ q.meta.owner_self_label or "自" }}</span><span><i class="other"></i>{{ q.meta.owner_other_label or "他" }}</span></div>
+          <table class="q2-tbl">
+            <colgroup><col style="width:90px"><col style="width:275px"></colgroup>
+            <thead><tr><th>製品日</th><th style="text-align:left;padding-left:14px">{{ q.meta.bad_col2_label or "廃品理由" }}</th></tr></thead>
+            <tbody>
+              {% for b in q.bad_products %}
+              <tr><td>{{ b.date }}</td><td class="reason"><span class="q2-reason {{ 'self' if b.owner == (q.meta.owner_self_label or '自') else 'other' }}">{{ b.reason }}</span></td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="q2-panel" style="left:15px;top:548px;width:690px;height:327px">
+          <div class="ttl">手直し発生工程ワースト３ 推移<small>（件数）</small></div>
+          <div class="q2-trend" id="q2Trend"></div>
+        </div>
+
+        <div class="q2-panel" style="left:715px;top:548px;width:715px;height:327px">
+          <div class="ttl" style="font-size:22px;font-weight:600">{{ q.meta.todo_title }}</div>
+          <table class="q2-todo">
+            <colgroup><col style="width:96px"><col style="width:96px"><col></colgroup>
+            <thead><tr><th>対応済</th><th>対応中</th><th class="task">タスク</th></tr></thead>
+            <tbody>
+              {% for t in q.todo %}
+              <tr>
+                <td>{% if t.done_by %}{{ avatar(t.done_by) }}{% endif %}</td>
+                <td>{% if t.doing_by %}{{ avatar(t.doing_by) }}{% endif %}</td>
+                <td class="task">{{ t.task }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <div class="q2-card" id="q2Card" hidden>
+            <div class="q2-card-av" id="q2CardAv"></div>
+            <div class="q2-card-body">
+              <div class="name" id="q2CardName"></div>
+              <div class="mail" id="q2CardMail"></div>
+              <div class="pres"><span class="dot" id="q2CardDot"></span><span id="q2CardPres"></span><span class="sep">·</span><span class="muted">ステータス メッセージ設定</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="q2-ai">
+          <div class="badge">
+            <svg viewBox="0 0 110 110" aria-hidden="true">
+              <g stroke="#1e8fff" stroke-width="2.4" fill="#1e8fff">
+                <line x1="38" y1="20" x2="38" y2="9"/><circle cx="38" cy="7" r="3"/>
+                <line x1="55" y1="20" x2="55" y2="9"/><circle cx="55" cy="7" r="3"/>
+                <line x1="72" y1="20" x2="72" y2="9"/><circle cx="72" cy="7" r="3"/>
+                <line x1="38" y1="90" x2="38" y2="101"/><circle cx="38" cy="103" r="3"/>
+                <line x1="55" y1="90" x2="55" y2="101"/><circle cx="55" cy="103" r="3"/>
+                <line x1="72" y1="90" x2="72" y2="101"/><circle cx="72" cy="103" r="3"/>
+                <line x1="20" y1="38" x2="9" y2="38"/><circle cx="7" cy="38" r="3"/>
+                <line x1="20" y1="55" x2="9" y2="55"/><circle cx="7" cy="55" r="3"/>
+                <line x1="20" y1="72" x2="9" y2="72"/><circle cx="7" cy="72" r="3"/>
+                <line x1="90" y1="38" x2="101" y2="38"/><circle cx="103" cy="38" r="3"/>
+                <line x1="90" y1="55" x2="101" y2="55"/><circle cx="103" cy="55" r="3"/>
+                <line x1="90" y1="72" x2="101" y2="72"/><circle cx="103" cy="72" r="3"/>
+              </g>
+              <rect x="20" y="20" width="70" height="70" rx="7" fill="#061524" stroke="#1e8fff" stroke-width="4"/>
+              <text x="55" y="67" text-anchor="middle" font-size="34" font-weight="700" fill="#fff" font-family="Inter,'Noto Sans JP',sans-serif">AI</text>
+            </svg>
+            <div class="t">AI 提案<small>（過去傾向に向けた提案）</small></div>
+          </div>
+          <div class="list">
+            {% for t in q.ai_tips %}
+            <div class="row"><svg viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="14" fill="{{ dot_color[t.color] }}"/></svg><span>{{ t.text }}</span></div>
+            {% endfor %}
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 保全情報2 と同じ出し入れ式 AI アシスタント（データは quality2_*.csv） -->
+    <div class="nr-panel nr-ai-panel mi-ai-panel" id="miAiPanel">
+      <div class="nr-panel-head">AIアシスタント（生成AI）<button class="nr-ai-reset" id="q2ChatReset">リセット</button></div>
+      <div class="nr-chat-body" id="q2ChatBody">
+        {% for m in q.chat %}
+        <div class="nr-chat-msg {{ m.sender }}">
+          {% if m.sender == 'user' %}<div class="nr-chat-avatar">操</div>{% elif mascot %}<div class="nr-chat-avatar mascot"><img src="{{ mascot.avatar }}" alt="{{ mascot.name }}"></div>{% else %}<div class="nr-chat-avatar">AI</div>{% endif %}
+          <div class="nr-chat-content">
+            <div class="nr-chat-meta">{{ 'あなた' if m.sender == 'user' else 'AIアシスタント' }} {{ m.time }}</div>
+            <div class="nr-chat-bubble">{{ m.text }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="nr-chat-input-row"><input type="text" id="q2ChatInput" placeholder="質問を入力してください。"><button id="q2ChatSend">送信</button></div>
+      <div class="nr-chat-disclaimer">＊生成AIの回答は参考情報であり、正確性を保証するものではありません。</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var q = {{ q|tojson }};
+  var AI_AVATAR = {{ (mascot.avatar if mascot else '')|tojson }};
+  var CANVAS_W = 1450, CANVAS_H = 1086;
+  var NS = 'http://www.w3.org/2000/svg';
+  var FONT = "'Noto Sans JP','Hiragino Kaku Gothic ProN','Yu Gothic',Meiryo,sans-serif";
+  function el(tag, attrs, kids){ var n = document.createElementNS(NS, tag); for (var k in attrs) n.setAttribute(k, attrs[k]); (kids || []).forEach(function(c){ n.appendChild(c); }); return n; }
+  function txt(x, y, s, attrs){ var t = el('text', Object.assign({ x: x, y: y, 'font-family': FONT }, attrs || {})); t.textContent = s; return t; }
+
+  // ---- 手直し発生工程ワースト３ 推移（件数）: compact legend row under the title, then the plot ----
+  (function(){
+    var W = 690, H = 287, X0 = 105, X1 = 610, Y0 = 62, Y1 = 232, AX = 53, AY = 239;
+    var tr = q.trend, labels = tr.labels, n = labels.length, yMax = tr.y_max || 200;
+    var x = function(i){ return X0 + (X1 - X0) * i / Math.max(1, n - 1); };
+    var y = function(v){ return Y1 - (Y1 - Y0) * v / yMax; };
+    var svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H });
+    var lg = tr.legend || {}, LY = 12;
+    svg.appendChild(el('line', { x1: 16, y1: LY, x2: 46, y2: LY, stroke: '#f2f2f2', 'stroke-width': 2, 'stroke-dasharray': '5 4' }));
+    svg.appendChild(el('circle', { cx: 31, cy: LY, r: 4.5, fill: '#fff' }));
+    svg.appendChild(txt(54, LY + 5, lg.total || '全体', { 'text-anchor': 'start', 'font-size': 14, fill: '#fff' }));
+    var lx = 118;
+    [['red', '#e8322a'], ['yellow', '#f5c400'], ['blue', '#2f8fff']].forEach(function(it){
+      svg.appendChild(el('circle', { cx: lx + 7, cy: LY, r: 7, fill: it[1] }));
+      svg.appendChild(txt(lx + 22, LY + 5, lg[it[0]] || it[0], { 'text-anchor': 'start', 'font-size': 14, fill: '#fff' }));
+      lx += 22 + (lg[it[0]] || it[0]).length * 14 + 26;
+    });
+    svg.appendChild(txt(20, 44, '(件数)', { 'text-anchor': 'start', 'font-size': 17, fill: '#fff' }));
+    var yl = tr.y_labels && tr.y_labels.length ? tr.y_labels : ['0', '50', '100', '150', '200'];
+    yl.forEach(function(lab, i){ var ty = Y1 - (Y1 - Y0) * i / (yl.length - 1); svg.appendChild(txt(AX - 8, ty + 5, lab, { 'text-anchor': 'end', 'font-size': 16, fill: '#fff' })); });
+    svg.appendChild(el('line', { x1: AX, y1: Y0 - 8, x2: AX, y2: AY, stroke: '#bfc3c8', 'stroke-width': 1.5 }));
+    svg.appendChild(el('line', { x1: AX, y1: AY, x2: X1 + 40, y2: AY, stroke: '#bfc3c8', 'stroke-width': 1.5 }));
+    labels.forEach(function(lab, i){ svg.appendChild(txt(x(i), AY + 24, lab, { 'text-anchor': 'middle', 'font-size': 18, fill: '#fff' })); });
+    var series = [
+      { key: 'total', stroke: '#f2f2f2', dash: '9 7', width: 2.2, marker: '#fff', label: 'above', lc: '#fff', lsize: 17 },
+      { key: 'red', stroke: '#e8322a', width: 3, marker: '#e8322a', label: 'above', lc: '#fff', lsize: 17 },
+      { key: 'yellow', stroke: '#f5c400', width: 3, marker: '#f5c400', end: '#f5c400' },
+      { key: 'blue', stroke: '#2f8fff', width: 3, marker: '#2f8fff', label: 'below', lc: '#fff', lsize: 17, end: '#2f8fff' }
+    ];
+    var ends = [];
+    series.forEach(function(s){
+      var vals = tr[s.key];
+      var d = vals.map(function(v, i){ return (i ? 'L' : 'M') + x(i).toFixed(1) + ',' + y(v).toFixed(1); }).join(' ');
+      var attrs = { d: d, fill: 'none', stroke: s.stroke, 'stroke-width': s.width, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' };
+      if (s.dash) attrs['stroke-dasharray'] = s.dash;
+      svg.appendChild(el('path', attrs));
+      vals.forEach(function(v, i){
+        svg.appendChild(el('circle', { cx: x(i), cy: y(v), r: 6, fill: s.marker }));
+        if (s.label === 'above') svg.appendChild(txt(x(i), y(v) - 12, v, { 'text-anchor': 'middle', 'font-size': s.lsize, 'font-weight': 500, fill: s.lc }));
+        if (s.label === 'below') svg.appendChild(txt(x(i), y(v) + 19, v, { 'text-anchor': 'middle', 'font-size': s.lsize, 'font-weight': 500, fill: s.lc }));
+      });
+      if (s.end) ends.push({ v: vals[n - 1], y: y(vals[n - 1]), color: s.end });
+    });
+    ends.sort(function(a, b){ return a.y - b.y; });
+    for (var k = 1; k < ends.length; k++) if (ends[k].y - ends[k - 1].y < 19) ends[k].y = ends[k - 1].y + 19;
+    ends.forEach(function(e){ svg.appendChild(txt(X1 + 18, e.y + 6, e.v, { 'text-anchor': 'start', 'font-size': 17, 'font-weight': 500, fill: e.color })); });
+    document.getElementById('q2Trend').appendChild(svg);
+  })();
+
+  // ---- 車体部 ToDoリスト: Teams-style contact card beside the clicked avatar (same top, never above) ----
+  (function(){
+    var PRES = { available: ['連絡可能', '#2fa84f'], busy: ['取り込み中', '#d13438'], away: ['退席中', '#e8a317'] };
+    var card = document.getElementById('q2Card'); if (!card) return;
+    var panel = card.parentNode;
+    document.querySelectorAll('.q2-av').forEach(function(btn){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
+        var key = btn.getAttribute('data-person'), p = (q.people || {})[key] || { surname: key, given_name: '', email: '', presence: 'available', bg: '#c9d8f3', fg: '#1b3a6b' };
+        var pr = PRES[p.presence] || PRES.available;
+        document.getElementById('q2CardAv').innerHTML = btn.querySelector('svg').outerHTML;
+        document.getElementById('q2CardName').textContent = p.surname + ' ' + p.given_name;
+        document.getElementById('q2CardMail').textContent = p.email;
+        document.getElementById('q2CardPres').textContent = pr[0];
+        document.getElementById('q2CardDot').style.background = pr[1];
+        var pr0 = panel.getBoundingClientRect(), br = btn.getBoundingClientRect();
+        var z = parseFloat(canvas.style.zoom) || 1, sc = (function(){ var m = /scale\(([0-9.]+)\)/.exec(document.getElementById('scaleInner').style.transform || ''); return m ? parseFloat(m[1]) : 1; })();
+        var left = (br.right - pr0.left) / (z * sc) + 10, top = (br.top - pr0.top) / (z * sc);
+        card.hidden = false;
+        var maxTop = panel.clientHeight - card.offsetHeight - 8;
+        card.style.left = left + 'px';
+        card.style.top = Math.max(8, Math.min(top, maxTop)) + 'px';
+      });
+    });
+    document.addEventListener('click', function(){ card.hidden = true; });
+    card.addEventListener('click', function(e){ e.stopPropagation(); });
+  })();
+
+  // ---- Toggleable AI panel + canvas fit (same mechanics as 保全情報2) ----
+  var body = document.getElementById('miBody');
+  var main = document.getElementById('miMain');
+  var canvas = document.getElementById('q2Canvas');
+  var toggleBtn = document.getElementById('miAiToggle');
+  var toggleArrow = document.getElementById('miAiToggleArrow');
+  var panel = document.getElementById('miAiPanel');
+  function fitCanvas(){
+    var w = main.clientWidth;
+    if (!w) return;
+    var z = w / CANVAS_W;
+    canvas.style.zoom = String(z);
+    if (panel) panel.style.height = (Math.round(CANVAS_H * z) - 28) + 'px';
+    window.dispatchEvent(new Event('resize'));
+  }
+  fitCanvas();
+  window.addEventListener('load', fitCanvas);
+  setTimeout(fitCanvas, 300);
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', function(){
+      var hidden = body.classList.toggle('ai-hidden');
+      toggleArrow.textContent = hidden ? '▶' : '◀';
+      fitCanvas();
+    });
+  }
+  var mascotEl = document.getElementById('miMascot');
+  if (mascotEl && toggleBtn) {
+    mascotEl.addEventListener('click', function(){ toggleBtn.click(); });
+    mascotEl.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleBtn.click(); } });
+  }
+
+  // ---- 全画面表示: the dashboard canvas alone (no sidebar / top bar / AI panel) ----
+  var fsBtn = document.getElementById('miFsBtn');
+  var fsExit = document.getElementById('miFsExit');
+  var pageEl = document.querySelector('.q2-page');
+  var fsHome = { parent: pageEl.parentNode, next: pageEl.nextSibling };
+  function inFs(){ return pageEl.classList.contains('fs-fallback'); }
+  function fitFs(){
+    var z = Math.min(window.innerWidth / CANVAS_W, window.innerHeight / CANVAS_H);
+    canvas.style.zoom = String(z);
+    if (panel) panel.style.height = '';
+  }
+  function enterFs(){
+    if (inFs()) return;
+    if (pageEl.parentNode !== document.body) document.body.appendChild(pageEl);
+    pageEl.classList.add('fs-fallback'); document.body.classList.add('fs-fallback-body'); document.documentElement.classList.add('fs-fallback-body');
+    window.scrollTo(0, 0);
+    fitFs();
+    if (pageEl.requestFullscreen) { try { pageEl.requestFullscreen().catch(function(){}); } catch (e) {} }
+  }
+  function exitFs(){
+    if (!inFs()) return;
+    pageEl.classList.remove('fs-fallback'); document.body.classList.remove('fs-fallback-body'); document.documentElement.classList.remove('fs-fallback-body');
+    if (pageEl.parentNode === document.body) fsHome.parent.insertBefore(pageEl, fsHome.next);
+    if (document.fullscreenElement) { try { document.exitFullscreen().catch(function(){}); } catch (e) {} }
+    fitCanvas();
+  }
+  if (fsBtn) fsBtn.addEventListener('click', function(){ inFs() ? exitFs() : enterFs(); });
+  if (fsExit) fsExit.addEventListener('click', exitFs);
+  document.addEventListener('fullscreenchange', function(){ if (document.fullscreenElement === pageEl) fitFs(); else if (inFs()) exitFs(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && inFs()) exitFs(); });
+  window.addEventListener('resize', function(){ if (inFs()) fitFs(); });
+  if (new URLSearchParams(location.search).get('fs') === '1') enterFs();
+
+  // ---- Live AI chat: DeepSeek grounded in this page's quality2_*.csv ----
+  var chatBody = document.getElementById('q2ChatBody');
+  var input = document.getElementById('q2ChatInput');
+  var sendBtn = document.getElementById('q2ChatSend');
+  var resetBtn = document.getElementById('q2ChatReset');
+  if (chatBody && input && sendBtn) {
+    var addMessage = function(sender, label, time, msgText){
+      var wrap = document.createElement('div');
+      wrap.className = 'nr-chat-msg ' + sender + ' dynamic-msg';
+      var avatar = document.createElement('div');
+      avatar.className = 'nr-chat-avatar';
+      if (sender !== 'user' && AI_AVATAR) {
+        avatar.classList.add('mascot');
+        var im = document.createElement('img'); im.src = AI_AVATAR; im.alt = ''; avatar.appendChild(im);
+      } else {
+        avatar.textContent = sender === 'user' ? '操' : 'AI';
+      }
+      var content = document.createElement('div'); content.className = 'nr-chat-content';
+      var meta = document.createElement('div'); meta.className = 'nr-chat-meta'; meta.textContent = label + (time ? ' ' + time : '');
+      var bubble = document.createElement('div'); bubble.className = 'nr-chat-bubble'; bubble.textContent = msgText;
+      content.appendChild(meta); content.appendChild(bubble);
+      wrap.appendChild(avatar); wrap.appendChild(content);
+      chatBody.appendChild(wrap);
+      chatBody.scrollTop = chatBody.scrollHeight;
+      return bubble;
+    };
+    var nowTime = function(){ var d = new Date(), p = function(n){ return String(n).padStart(2, '0'); }; return p(d.getHours()) + ':' + p(d.getMinutes()); };
+    var send = function(){
+      var qq = input.value.trim();
+      if (!qq || sendBtn.disabled) return;
+      input.value = ''; sendBtn.disabled = true;
+      addMessage('user', 'あなた', nowTime(), qq);
+      var thinking = addMessage('ai', 'AIアシスタント', nowTime(), '考え中…');
+      fetch('/api/v1/quality2/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: qq }) })
+        .then(function(r){ return r.json(); }).then(function(data){ thinking.textContent = data.ok ? data.answer : ('⚠ ' + data.error); })
+        .catch(function(){ thinking.textContent = '⚠ 通信エラーが発生しました。しばらくしてから再度お試しください。'; })
+        .finally(function(){ sendBtn.disabled = false; chatBody.scrollTop = chatBody.scrollHeight; });
+    };
+    sendBtn.addEventListener('click', send);
+    input.addEventListener('keydown', function(e){ if (e.key === 'Enter') send(); });
+    if (resetBtn) resetBtn.addEventListener('click', function(){ chatBody.querySelectorAll('.dynamic-msg').forEach(function(n){ n.remove(); }); });
+  }
+})();
+</script>
+{% endblock %}

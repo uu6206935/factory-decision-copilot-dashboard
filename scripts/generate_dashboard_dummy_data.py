@@ -887,6 +887,24 @@ write_csv("maintenance_mascot.csv", ["key", "value"], [
     ["avatar", "/static/kohinyan_avatar.png"],
 ])
 
+# 保全情報2 専用: 主要設備の異常スコアトレンド。先頭カードはナットランナーPU-01 の
+# １軸（source=pumpunit_axis1、起点は pumpunit_meta の mini_start）。grade は各カードの
+# スコア横に表示する評価ランク。
+# href = ページ遷移アイコンの飛び先（空なら従来のバッジ表示）
+PU01_PAGE = "/monitoring/nut-runner-pu01-2"
+write_csv("maintenance2_score_cards.csv", ["eq_id", "eq_name", "risk", "badge", "score", "grade", "source", "href"], [
+    ["PU-01", "ナット締め付け設備", "high", "異常スコア", 85, "E", "pumpunit_axis1", PU01_PAGE],
+    ["B-03", "化成設備", "high", "異常スコア", 78, "E", "", PU01_PAGE],
+    ["A-01", "巻取ラミネート設備", "mid", "警戒スコア", 62, "D", "", PU01_PAGE],
+    ["C-02", "組立検査設備", "low", "正常スコア", 34, "A", "", PU01_PAGE],
+])
+# 設備ステータスサマリーの「詳細を見る ›」を押したときに出る設備リスト（tier ごと）
+write_csv("maintenance2_status_links.csv", ["tier", "label", "href"], [
+    ["critical", "PU-01 ナット締め付け設備", PU01_PAGE],
+    ["critical", "B-03 化成設備", ""],
+    ["critical", "A-02 巻取コート設備", ""],
+])
+
 # ---------------------------------------------------------------------------
 # 19) 生産状況 > 生産状況 (conveyor line-map production status screen,
 #     reproducing the reference image 1:1 on a 1672×941 canvas; every
@@ -994,6 +1012,8 @@ write_csv("pumpunit_meta.csv", ["key", "value"], [
     ["active_tab", "概要"], ["period", "24時間"],
     ["structure_image", "/static/nutrunner_section.png"],
     ["mini_start", "05/19 00:00"],  # 左上グラフの起点（１軸系列をここから表示）
+    ["history_link", "/history/t-mss"],  # 設備異常履歴の各行の外部リンクアイコンの飛び先（設備異常履歴 > T-MSS）
+    ["score_note", "締め付け時間が増加傾向を示しています。\nまた、トルク時間勾配、締め付け角度にも\n関連する変化が示されています。"],  # 異常スコア欄のコメント
 ])
 write_csv("pumpunit_nav.csv", ["label", "icon", "active", "badge"], [
     ["ダッシュボード", "home", 0, ""], ["設備監視", "monitor", 1, ""], ["アラート一覧", "bell", 0, "3"],
@@ -1111,11 +1131,105 @@ write_csv("pumpunit_failure_history.csv", ["date", "cause", "action"], [
     ["2019/07/22", "ソケットの破損", "ソケットの交換"],
     ["2019/03/11", "ソケット先端のひび", "ソケットの交換"],
 ])
+# 最新アラート情報パネルの 5 行（ナットランナー用）
+write_csv("pumpunit_info_rows.csv", ["label", "value"], [
+    ["設備ID", "ナットランナーPU-01"],
+    ["締め付けID", "Y202505190002"],
+    ["発生時刻", "2025-05-19-09:55:30"],
+    ["軸番号", "１"],
+    ["Health Score", "E"],
+])
+# 生データの縦軸の選択肢（先頭が初期表示）
+write_csv("pumpunit_raw_axes.csv", ["key", "label", "unit", "max"], [
+    ["angle", "締め付け角度", "deg", 180],
+    ["torque", "トルク", "N·m", 100],
+])
 write_csv("pumpunit_ai_chat.csv", ["sender", "time", "kind", "text"], [
     ["user", "10:28", "text", "この装置の異常のトレンドを教えてください。"],
     ["ai", "10:28", "text", "過去7日間の異常スコアは徐々に上昇傾向にあり、特に05/19 6:30 以降にスコアが上昇しています。これは主に、吸込みフィルターの詰まりと流量低下を原因と考えられます。"],
     ["ai", "10:28", "chart", "過去7日間の異常スコア推移"],
     ["user", "10:29", "text", "なぜ異常スコアが高いのかを詳しく分析してください。"],
     ["ai", "10:29", "text", "異常スコアが高い主な要因は以下の通りです。\n・流量の低下（OC流量）\n　05/16以降、流量が徐々に低下しており、ポンプリングの効率低下の可能性があります。\n・モーター電流の増加\n　負荷の上昇や抵抗の増加が影響し、電流値が上昇しています。\n・再構成誤差の増加\n　Autoencoderモデルがパターンから大きく乖離しており、異常と判定されるデータが多くなっています。\nこれらの要因を総合的に判断し、異常スコアが高くなっています。"],
+])
+# ---------------------------------------------------------------------------
+# 21) 設備異常履歴 > T-MSS: 1 件の異常履歴（2025/04/30 ソケット先端のひび割れ）の
+#     詳細画面。見出し・日時・本文はすべてここから。
+# ---------------------------------------------------------------------------
+write_csv("tmss_history_detail.csv", ["key", "value"], [
+    ["page_title", "設備異常履歴"],
+    ["equipment_label", "設備名"], ["equipment_name", "ナットランナーPU-01"], ["status", "稼働中"],
+    ["location_label", "設置場所"], ["location", "製造ライン1"],
+    ["equipment_id_label", "設備ID"], ["equipment_id", "ナットランナーPU-01"],
+    ["fastening_id_label", "締め付けID"], ["fastening_id", "2025-04-30-10:42:15"],
+    ["issue_title", "不具合（詳細）"], ["issue_date_label", "発生日時"], ["issue_date", "2025/04/30 10:42"],
+    ["issue_text", "締付け動作中に締付けトルクの立ち上がり不良と異常振動を検知し、異常アラーム（トルク異常）が発生。\nソケット先端部にひび割れがあり、ボルト頭部との嵌合が不安定で設定トルクに達しない状態。アラーム発生後は自動で停止する。"],
+    ["cause_title", "原因（詳細）"], ["cause_date_label", "特定日時"], ["cause_date", "2025/04/30 13:20"],
+    ["cause_text", "ソケット先端部の疲労によるひび割れ（打痕を起点としたクラックの進展）。\n締付け回数が交換目安を超えて使用されており、ボルト当たり面の偏摩耗も確認。"],
+    ["action_title", "処置（詳細）"], ["action_date_label", "完了日時"], ["action_date", "2025/04/30 15:05"],
+    ["action_text", "ソケットを新品に交換し、締付けトルク・角度の校正を実施。\n動作確認のうえ、正常に締付けができることを確認し、設備を復旧。\n再発防止として、締付け回数に基づくソケット交換周期を作業標準に追記。"],
+])
+# ---------------------------------------------------------------------------
+# 22) 品質 > 品質状況2: 高岡電池工場 CCRダッシュボード（品質状況）の参考画像を 1:1 再現
+# ---------------------------------------------------------------------------
+write_csv("quality2_meta.csv", ["key", "value"], [
+    ["factory_name", "高岡電池工場"], ["title", "CCRダッシュボード（品質状況）"],
+    ["line_name", "LINE #1"], ["report_date", "2025/05/28"], ["shift", "白直"],
+    ["auto_refresh_label", "自動更新"], ["auto_refresh", "ON"],
+    ["todo_title", "車体部　ToDoリスト（5/28）"], ["bad_title", "T　当月廃品数詳細"], ["bad_col2_label", "廃品理由"],
+    ["owner_self_label", "自"], ["owner_other_label", "他"],
+    ["trend_y_labels", "0|20|40|60|80|100|120|130|140|160|180|200"],  # 参考画像の目盛り表記そのまま
+    ["trend_y_max", "200"],
+])
+write_csv("quality2_kpis.csv", ["key", "prefix", "label", "value", "unit", "tier", "row1_label", "row1_value", "row2_label", "row2_value"], [
+    ["k_rate", "K", "直行率", "94.3", "%", "critical", "前日", "94.9%", "前週", "95.5%"],
+    ["w_defect", "W", "台当たり不具合件数", "1.05", "件/台", "good", "手直し総数", "119件", "", ""],
+    ["t_bad", "T", "当月廃品数", "3", "件", "good", "前月廃品数", "11件", "", ""],
+    ["k_defect", "K", "台当たり不具合件数", "1.88", "件/台", "good", "手直し総数", "122件", "", ""],
+    ["outflow", "", "後工程流出数（当月）", "2", "件", "good", "前月", "1件", "", ""],
+])
+write_csv("quality2_worst_rework.csv", ["rank", "process", "count", "prev", "flag"], [
+    [1, "XX 塗布工程", "23件", "19件", "critical"], [2, "●● 巻付け工程", "21件", "20件", "critical"], [3, "XX 組立工程", "14件", "16件", "none"],
+])
+write_csv("quality2_worst_calls.csv", ["rank", "process", "count", "prev", "flag"], [
+    [1, "XX 巻付け工程", "23件", "22件", "critical"], [2, "▲▲ 巻付け工程", "18件", "15件", "warn"], [3, "■■ 巻付け工程", "10件", "12件", "none"],
+])
+# owner: 自 = 自工程起因（赤枠）, 他 = 他工程起因（緑枠）
+write_csv("quality2_bad_products.csv", ["date", "reason", "owner"], [
+    ["5/21", "塗布ムラによる膜厚不足", "自"],
+    ["5/15", "受入部品の寸法不良", "他"],
+    ["5/10", "巻付け位置ズレ", "自"],
+])
+# 車体部 ToDo: done_by / doing_by は担当者の姓（quality2_people.csv の surname）
+write_csv("quality2_todo.csv", ["done_by", "doing_by", "task"], [
+    ["鈴木", "", "XX 塗布工程の塗布条件（粘度・吐出量）の再確認"],
+    ["", "佐藤", "●● 巻付け工程の段取り変更・材料ロット履歴の確認"],
+    ["斉藤", "山田", "後工程流出品の受入チェック基準の見直し"],
+    ["", "田中", "W工程 識別管理ルールの改訂と周知"],
+    ["高橋", "", "XX 組立工程の手直し要因分析（5/24〜5/28）"],
+])
+write_csv("quality2_people.csv", ["surname", "given_name", "email", "presence", "bg", "fg"], [
+    ["鈴木", "健太", "suzuki@dekirunet02.onmicrosoft.com", "available", "#c9d8f3", "#1b3a6b"],
+    ["佐藤", "美咲", "sato@dekirunet02.onmicrosoft.com", "busy", "#f3c9d2", "#7a1c2e"],
+    ["斉藤", "大輔", "saito@dekirunet02.onmicrosoft.com", "available", "#cfe8d4", "#1e5b2e"],
+    ["山田", "由紀", "yamada@dekirunet02.onmicrosoft.com", "away", "#f3c9d2", "#7a1c2e"],
+    ["田中", "翔", "tanaka@dekirunet02.onmicrosoft.com", "available", "#f7dcc4", "#7a3d12"],
+    ["高橋", "恵", "takahashi@dekirunet02.onmicrosoft.com", "busy", "#e0d2f0", "#4a2a7a"],
+])
+write_csv("quality2_trend.csv", ["date", "total", "red", "yellow", "blue"], [
+    ["5/24", 112, 26, 21, 12], ["5/25", 118, 24, 21, 12], ["5/26", 123, 25, 21, 12],
+    ["5/27", 136, 24, 21, 12], ["5/28（本日）", 142, 23, 21, 14],
+])
+write_csv("quality2_trend_legend.csv", ["key", "label"], [
+    ["total", "全体"], ["red", "XX 塗布工程"], ["yellow", "●● 巻付け工程"], ["blue", "XX 組立工程"],
+])
+write_csv("quality2_ai_tips.csv", ["color", "text"], [
+    ["red", "●● 巻付け工程で 5/27以降急激な悪化を確認。段取り変更・材料ロット・設備設定変更履歴の確認を推奨します。"],
+    ["yellow", "XX 塗布工程の手直し件数が継続して高止まりしています。塗布条件の再確認と設備保全の実施を推奨します。"],
+    ["blue", "後工程流出数が前月比で増加しています。AI工程での受入チェック基準の見直しと、W工程の識別管理の強化を推奨します。"],
+])
+write_csv("quality2_ai_chat.csv", ["sender", "time", "text"], [
+    ["ai", "10:30", "こんにちは！品質状況についてご案内します。直行率や手直し件数、後工程流出について、気になる点があればお尋ねください。"],
+    ["user", "10:31", "今いちばん対策が必要な工程はどこですか？"],
+    ["ai", "10:31", "手直し発生件数は XX 塗布工程が 23 件（前日 19 件）でワースト 1 位、●● 巻付け工程が 21 件で 2 位です。呼出回数でも XX 巻付け工程が 23 件で最多です。K 直行率も 94.3% と前日（94.9%）・前週（95.5%）から低下しているため、まず XX 塗布工程の塗布条件と設備保全の確認を優先することをお勧めします。"],
 ])
 print("done")

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}T-MSS · {{ app_name }}{% endblock %}
+{% block page_title %}<span class="th-topbar-title">T-MSS</span>{% endblock %}
+{% block content %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap">
+
+<div class="th-page">
+  <div class="th-canvas" id="thCanvas">
+    <div class="th-frame">
+      <div class="th-title">{{ th.page_title }}</div>
+
+      <div class="th-card th-head">
+        <div class="lbl">{{ th.equipment_label }}</div>
+        <div class="name">{{ th.equipment_name }}</div>
+        <div class="vsep"></div>
+        <div class="info">
+          <span class="k">{{ th.location_label }}</span><span class="c">：</span><span>{{ th.location }}</span>
+          <span class="k">{{ th.equipment_id_label }}</span><span class="c">：</span><span>{{ th.equipment_id }}</span>
+          <span class="k">{{ th.fastening_id_label }}</span><span class="c">：</span><span>{{ th.fastening_id }}</span>
+        </div>
+      </div>
+
+      <div class="th-card th-detail" style="top:323px;height:175px">
+        <div class="ttl">{{ th.issue_title }}</div>
+        <div class="date"><span>{{ th.issue_date_label }}</span>{{ th.issue_date }}</div>
+        <div class="box">{{ th.issue_text }}</div>
+      </div>
+
+      <div class="th-card th-detail" style="top:522px;height:169px">
+        <div class="ttl">{{ th.cause_title }}</div>
+        <div class="date"><span>{{ th.cause_date_label }}</span>{{ th.cause_date }}</div>
+        <div class="box">{{ th.cause_text }}</div>
+      </div>
+
+      <div class="th-card th-detail" style="top:715px;height:206px">
+        <div class="ttl">{{ th.action_title }}</div>
+        <div class="date"><span>{{ th.action_date_label }}</span>{{ th.action_date }}</div>
+        <div class="box">{{ th.action_text }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // Fixed 1672px canvas, CSS-zoomed to the content width (same approach as the other screens).
+  var page = document.querySelector('.th-page'), canvas = document.getElementById('thCanvas');
+  function fit(){ var w = page.clientWidth; if (!w) return; canvas.style.zoom = String(w / 1672); window.dispatchEvent(new Event('resize')); }
+  fit(); window.addEventListener('load', fit); setTimeout(fit, 300);
+})();
+</script>
+{% endblock %}

@@ -20,7 +20,7 @@ from .platform import catalog_payload, get_state, rebuild
 from .security import UserContext, current_user, require_role
 from .schema import ALIASES, DISPLAY_LABELS, ROLE_REQUIRED, save_join_review, save_schema_review
 from .service import run_analysis
-from .dashboard_data import production_dashboard_data, equipment_monitor_data, bolt_torque_data, line_list_data, machine_learning_data, quality_ccr_data, nutrunner_detail_data, nutrunner_ai_ask, anomaly_dashboard_data, anomaly_dashboard_ai_ask, autoencoder_config_data, autoencoder_ai_ask, maintenance_data, maintenance_ai_ask, maintenance_mascot, production_status_data, pumpunit_detail_data, pumpunit_ai_ask
+from .dashboard_data import production_dashboard_data, equipment_monitor_data, bolt_torque_data, line_list_data, machine_learning_data, quality_ccr_data, nutrunner_detail_data, nutrunner_ai_ask, anomaly_dashboard_data, anomaly_dashboard_ai_ask, autoencoder_config_data, autoencoder_ai_ask, maintenance_data, maintenance_ai_ask, maintenance_mascot, production_status_data, pumpunit_detail_data, pumpunit_ai_ask, tmss_history_data, quality_status2_data, quality_status2_ai_ask
 from .ai_modules import intelligence_snapshot, module_status
 from .process_intelligence import process_snapshot
 from .sensor_ai import equipment_health
@@ -124,7 +124,7 @@ async def disable_ui_cache(request: Request, call_next):
         # This is what makes page-to-page navigation feel instant: without it the
         # browser re-downloads the full CSS/JS bundle on every single screen.
         response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
-    elif path in {"/", "/investigate", "/onboarding", "/equipment", "/equipment/bolt-torque", "/equipment/lines", "/equipment/machine-learning", "/quality/status", "/monitoring/nut-runner-pu01", "/monitoring/nut-runner-pu01-2", "/anomaly/detection", "/settings/autoencoder", "/maintenance/info", "/maintenance/info2", "/production/status", "/intelligence", "/data-map"}:
+    elif path in {"/", "/investigate", "/onboarding", "/equipment", "/equipment/bolt-torque", "/equipment/lines", "/equipment/machine-learning", "/quality/status", "/quality/status2", "/monitoring/nut-runner-pu01", "/monitoring/nut-runner-pu01-2", "/anomaly/detection", "/settings/autoencoder", "/maintenance/info", "/maintenance/info2", "/production/status", "/history/t-mss", "/intelligence", "/data-map"}:
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
@@ -254,7 +254,7 @@ def nutrunner_detail2_page(request: Request):
     return templates.TemplateResponse(
         request=request,
         name="nutrunner_detail2.html",
-        context=ctx("nutrunner_detail2", pu=pumpunit_detail_data()),
+        context=ctx("nutrunner_detail2", pu=pumpunit_detail_data(), mascot=maintenance_mascot()),
     )
 
 
@@ -341,7 +341,35 @@ def maintenance_info2_page(request: Request):
     return templates.TemplateResponse(
         request=request,
         name="maintenance_info2.html",
-        context=ctx("maintenance_info2", mt=maintenance_data(), mascot=maintenance_mascot(), page_label="保全情報2"),
+        context=ctx("maintenance_info2", mt=maintenance_data(variant="2"), mascot=maintenance_mascot(), page_label="保全情報2"),
+    )
+
+
+@app.get("/quality/status2", response_class=HTMLResponse)
+def quality_status2_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="quality_status2.html",
+        context=ctx("quality_status2", q=quality_status2_data(), mascot=maintenance_mascot()),
+    )
+
+
+@app.post("/api/v1/quality2/ask")
+async def api_quality2_ask(request: Request, user: UserContext = Depends(current_user)):
+    body = await request.json()
+    question = str(body.get("question") or "").strip()
+    if not question:
+        return JSONResponse({"ok": False, "error": "質問を入力してください。"}, status_code=400)
+    log_audit(user.subject, "quality2.chat.ask", {"question": question[:200]})
+    return JSONResponse(quality_status2_ai_ask(question))
+
+
+@app.get("/history/t-mss", response_class=HTMLResponse)
+def tmss_history_page(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="history_tmss.html",
+        context=ctx("history_tmss", th=tmss_history_data()),
     )
 
 

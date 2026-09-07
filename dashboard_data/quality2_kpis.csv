@@ -1,0 +1,6 @@
+﻿key,prefix,label,value,unit,tier,row1_label,row1_value,row2_label,row2_value
+k_rate,K,直行率,94.3,%,critical,前日,94.9%,前週,95.5%
+w_defect,W,台当たり不具合件数,1.05,件/台,good,手直し総数,119件,,
+t_bad,T,当月廃品数,3,件,good,前月廃品数,11件,,
+k_defect,K,台当たり不具合件数,1.88,件/台,good,手直し総数,122件,,
+outflow,,後工程流出数（当月）,2,件,good,前月,1件,,

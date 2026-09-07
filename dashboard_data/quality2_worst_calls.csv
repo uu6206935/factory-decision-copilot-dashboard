@@ -1,0 +1,4 @@
+﻿rank,process,count,prev,flag
+1,XX 巻付け工程,23件,22件,critical
+2,▲▲ 巻付け工程,18件,15件,warn
+3,■■ 巻付け工程,10件,12件,none

@@ -13,3 +13,7 @@ active_tab,概要
 period,24時間
 structure_image,/static/nutrunner_section.png
 mini_start,05/19 00:00
+history_link,/history/t-mss
+score_note,"締め付け時間が増加傾向を示しています。
+また、トルク時間勾配、締め付け角度にも
+関連する変化が示されています。"
