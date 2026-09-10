@@ -4,15 +4,17 @@ from pathlib import Path
 import json
 import re
 from datetime import datetime
+import io
+import zipfile
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Form, Request, UploadFile, File, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
-from .config import APP_NAME, APP_VERSION, ACCESS_KEY, AUTH_MODE, DATA_DIR, LLM_MODE, VECTOR_BACKEND, FILE_ALLOWLIST, MAX_FILE_MB, RUNTIME_DIR, DEEPSEEK_MODEL
+from .config import APP_NAME, APP_VERSION, ACCESS_KEY, AUTH_MODE, DATA_DIR, LLM_MODE, VECTOR_BACKEND, FILE_ALLOWLIST, MAX_FILE_MB, RUNTIME_DIR, DEEPSEEK_MODEL, ROOT
 from .capabilities import preferred_prompt
 from .database import init_db, log_audit, recent_audit, recent_cases, recent_review_items, recent_vision_events
 from .metrics import INGEST_COUNT
@@ -380,6 +382,40 @@ def production_status_page(request: Request):
         name="production_status.html",
         context=ctx("production_status", ps=production_status_data()),
     )
+
+
+# ---------------------------------------------------------------------------
+# Source download: GET /download (or /download/source.zip) streams a ZIP of the
+# whole project built on the fly. Secrets and local state are excluded, and the
+# route sits behind the same link-only access gate as every page.
+# ---------------------------------------------------------------------------
+ZIP_EXCLUDE_DIRS = {".git", ".venv", "venv", "runtime", "__pycache__", ".pytest_cache", "node_modules", ".claude", ".idea", ".vscode"}
+ZIP_EXCLUDE_FILES = {".env", ".env.local"}
+ZIP_EXCLUDE_SUFFIXES = {".pyc", ".pyo", ".db", ".sqlite", ".log"}
+ZIP_ROOT_NAME = "factory-decision-copilot-dashboard"
+
+
+def _build_source_zip() -> io.BytesIO:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for path in sorted(ROOT.rglob("*")):
+            rel = path.relative_to(ROOT)
+            if any(part in ZIP_EXCLUDE_DIRS for part in rel.parts):
+                continue
+            if not path.is_file() or path.name in ZIP_EXCLUDE_FILES or path.suffix.lower() in ZIP_EXCLUDE_SUFFIXES:
+                continue
+            zf.write(path, arcname=f"{ZIP_ROOT_NAME}/{rel.as_posix()}")
+    buf.seek(0)
+    return buf
+
+
+@app.get("/download")
+@app.get("/download/source.zip")
+def download_source_zip(user: UserContext = Depends(current_user)):
+    log_audit(user.subject, "source.download", {})
+    stamp = datetime.now().strftime("%Y%m%d")
+    headers = {"Content-Disposition": f'attachment; filename="{ZIP_ROOT_NAME}-{stamp}.zip"', "Cache-Control": "no-store"}
+    return StreamingResponse(_build_source_zip(), media_type="application/zip", headers=headers)
 
 
 @app.get("/coming-soon", response_class=HTMLResponse)
